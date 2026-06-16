@@ -1,0 +1,11 @@
+node_modules
+dist
+
+# env files (keep the example committed)
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
