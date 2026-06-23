@@ -2,6 +2,9 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import { eventRouter } from './event.routes';
 import { attendeeRouter } from './attendee.routes';
+import { authRouter } from './auth.routes';
+import { requireAuth } from '../middlewares/requireAuth.middleware';
+import { asyncHandler } from '../utils/asyncHandler';
 
 export const apiRouter = Router();
 
@@ -12,5 +15,6 @@ apiRouter.get('/health', (_req, res) => {
   res.status(dbConnected ? 200 : 503).json({ ok: dbConnected, db: dbConnected ? 'up' : 'down' });
 });
 
-apiRouter.use('/events', eventRouter);
-apiRouter.use('/attendees', attendeeRouter);
+apiRouter.use('/auth', authRouter);
+apiRouter.use('/events', asyncHandler(requireAuth), eventRouter);
+apiRouter.use('/attendees', asyncHandler(requireAuth), attendeeRouter);

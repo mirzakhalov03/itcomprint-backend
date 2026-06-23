@@ -9,7 +9,7 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 async function main() {
   const mongo = await MongoMemoryServer.create();
   const proc = spawn('node', ['dist/server.js'], {
-    env: { ...process.env, NODE_ENV: 'production', PORT: '4066', MONGODB_URI: mongo.getUri('roadshow_badges'), CORS_ORIGIN: 'https://kiosk.example' },
+    env: { ...process.env, NODE_ENV: 'production', PORT: '4066', MONGODB_URI: mongo.getUri('roadshow_badges'), CORS_ORIGIN: 'https://kiosk.example', GOOGLE_CLIENT_ID: 'smoke-client-id', JWT_SECRET: 'smoke-secret-at-least-16-chars' },
     stdio: 'inherit',
   });
 

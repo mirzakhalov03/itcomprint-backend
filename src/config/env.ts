@@ -7,6 +7,9 @@ const envSchema = z.object({
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
   // Comma-separated list of allowed origins (e.g. "https://kiosk.itcom.uz,https://staff.itcom.uz").
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
+  JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters'),
+  COOKIE_DOMAIN: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -2,7 +2,12 @@ import { Request, Response } from 'express';
 import * as eventService from '../services/event.services';
 
 export async function create(req: Request, res: Response) {
-  const event = await eventService.createEventWithAttendees(req.body);
+  const user = req.user!; // guaranteed by requireAuth on the /events router
+  const event = await eventService.createEventWithAttendees(req.body, {
+    id: String(user._id),
+    name: user.displayName,
+    picture: user.picture,
+  });
   res.status(201).json(event);
 }
 

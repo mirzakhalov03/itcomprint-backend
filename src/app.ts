@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
@@ -21,6 +22,7 @@ export function createApp() {
 
   app.use(
     cors({
+      credentials: true,
       origin(origin, callback) {
         // Allow non-browser clients (no Origin header) and any configured origin.
         if (!origin || corsOrigins.includes(origin)) return callback(null, true);
@@ -28,6 +30,7 @@ export function createApp() {
       },
     }),
   );
+  app.use(cookieParser());
 
   app.use(express.json({ limit: '5mb' })); // imports can be large
 

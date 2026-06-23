@@ -13,7 +13,7 @@ The API for **Roadshow Badge Printing** — an internal kiosk tool for IT Commun
 - `npm run verify` — the project's test harness (`scripts/verify.ts`). Spins up an in-memory MongoDB (`mongodb-memory-server`), boots the app via `createApp()` on port 4055, and asserts every endpoint + error path. **Run this after any backend change.** There are no unit tests and, per project preference, none should be added.
 - `npm run smoke` — builds, then boots the **compiled** `dist/server.js` in `NODE_ENV=production` against a throwaway Mongo and checks security headers, DB-aware health, and graceful SIGTERM shutdown. Run before deploying — `verify` never exercises the real `server.ts` entrypoint.
 
-Env (`.env`, Zod-validated at startup — see `.env.example`): `NODE_ENV`, `PORT`, `MONGODB_URI`, `CORS_ORIGIN` (comma-separated origin list). Invalid/missing config logs the bad fields and exits before boot.
+Env (`.env`, Zod-validated at startup — see `.env.example`): `NODE_ENV`, `PORT`, `MONGODB_URI`, `CORS_ORIGIN` (comma-separated origin list), `GOOGLE_CLIENT_ID` (Google OAuth 2.0 Web client ID), `JWT_SECRET` (≥16 chars; signs session cookies), `COOKIE_DOMAIN` (optional; cross-subdomain sessions). Invalid/missing config logs the bad fields and exits before boot.
 
 ## API surface
 
@@ -22,11 +22,17 @@ All routes are mounted under `/api` (`app.ts`):
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET  | `/health` | readiness — 200 `{ ok: true, db: 'up' }` only when Mongo is connected, else 503 |
-| POST | `/events` | create an event **with its attendees** in one shot |
-| GET  | `/events` | list events, each with `attendeeCount` |
-| GET  | `/events/:id` | one event |
-| GET  | `/events/:id/attendees` | list attendees; `?search=` & `?status=printed\|not_printed` |
-| POST | `/attendees/:id/print` | mark printed — also the reprint endpoint |
+| POST | `/auth/google` | verify Google ID token, upsert user, set session cookie |
+| GET  | `/auth/me` | return current user (requires session) |
+| PATCH | `/auth/me` | update `displayName`, set `onboardedAt` on first call (requires session) |
+| POST | `/auth/logout` | clear session cookie (requires session) |
+| POST | `/events` | create an event **with its attendees** in one shot (requires session; stamps author) |
+| GET  | `/events` | list events, each with `attendeeCount` (requires session) |
+| GET  | `/events/:id` | one event (requires session) |
+| GET  | `/events/:id/attendees` | list attendees; `?search=` & `?status=printed\|not_printed` (requires session) |
+| POST | `/attendees/:id/print` | mark printed — also the reprint endpoint (requires session) |
+
+`/events` and `/attendees` are guarded by `requireAuth` (`middlewares/requireAuth.middleware.ts`), which reads the `session` httpOnly cookie, verifies the JWT, and attaches `req.user`. Auth routes are public.
 
 ## Layering & conventions
 

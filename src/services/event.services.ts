@@ -6,8 +6,17 @@ function buildSearchText(fullName: string, extra: Record<string, string>): strin
   return [fullName, ...Object.values(extra)].join(' ').toLowerCase();
 }
 
-export async function createEventWithAttendees(input: CreateEventInput) {
-  const event = await EventModel.create({ name: input.name, date: new Date(input.date) });
+export async function createEventWithAttendees(
+  input: CreateEventInput,
+  author: { id: string; name: string; picture: string },
+) {
+  const event = await EventModel.create({
+    name: input.name,
+    date: new Date(input.date),
+    authorId: author.id,
+    authorName: author.name,
+    authorPicture: author.picture,
+  });
 
   const docs = input.attendees.map((a) => ({
     eventId: event._id,
