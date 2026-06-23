@@ -31,11 +31,20 @@ export async function createEventWithAttendees(
 
 export async function listEvents() {
   const events = await EventModel.find().sort({ date: -1 }).lean();
-  const counts = await AttendeeModel.aggregate<{ _id: unknown; count: number }>([
-    { $group: { _id: '$eventId', count: { $sum: 1 } } },
+  const counts = await AttendeeModel.aggregate<{ _id: unknown; count: number; printed: number }>([
+    {
+      $group: {
+        _id: '$eventId',
+        count: { $sum: 1 },
+        printed: { $sum: { $cond: [{ $eq: ['$printStatus', 'printed'] }, 1, 0] } },
+      },
+    },
   ]);
-  const countMap = new Map(counts.map((c) => [String(c._id), c.count]));
-  return events.map((e) => ({ ...e, attendeeCount: countMap.get(String(e._id)) ?? 0 }));
+  const countMap = new Map(counts.map((c) => [String(c._id), c]));
+  return events.map((e) => {
+    const c = countMap.get(String(e._id));
+    return { ...e, attendeeCount: c?.count ?? 0, printedCount: c?.printed ?? 0 };
+  });
 }
 
 export async function getEvent(id: string) {

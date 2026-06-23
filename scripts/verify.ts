@@ -140,9 +140,13 @@ async function main() {
     });
     check('POST /events with no attendees → 400', badRes.status === 400, badRes.status);
 
-    // list events → attendeeCount present
+    // list events → attendeeCount + printedCount present (nothing printed yet)
     const events = await afetch('/events').then((r) => r.json());
-    check('GET /events → array with attendeeCount=2', Array.isArray(events) && events[0]?.attendeeCount === 2, events);
+    check(
+      'GET /events → attendeeCount=2, printedCount=0',
+      Array.isArray(events) && events[0]?.attendeeCount === 2 && events[0]?.printedCount === 0,
+      events,
+    );
 
     // get one
     const one = await afetch(`/events/${eventId}`).then((r) => r.json());
@@ -198,6 +202,14 @@ async function main() {
     // status filter reflects the print
     const printedList = await afetch(`/events/${eventId}/attendees?status=printed`).then((r) => r.json());
     check('GET attendees?status=printed → only Jane', printedList.length === 1 && printedList[0]._id === janeId, printedList);
+
+    // list events again → printedCount reflects the print
+    const eventsAfterPrint = await afetch('/events').then((r) => r.json());
+    check(
+      'GET /events after print → printedCount=1',
+      eventsAfterPrint[0]?.printedCount === 1,
+      eventsAfterPrint,
+    );
 
     // print unknown attendee → 404
     const printMissing = await afetch('/attendees/0123456789abcdef01234567/print', { method: 'POST' });
