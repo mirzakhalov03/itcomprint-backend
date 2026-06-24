@@ -1,5 +1,6 @@
 import { EventModel } from '../models/event.model';
 import { AttendeeModel } from '../models/attendee.model';
+import { BadgeTemplateModel } from '../models/badgeTemplate.model';
 import { CreateEventInput } from '../validators/event.validators';
 import { AppError } from '../utils/AppError';
 
@@ -50,6 +51,20 @@ export async function listEvents() {
 
 export async function getEvent(id: string) {
   const event = await EventModel.findById(id).lean();
+  if (!event) throw new AppError(404, 'Event not found');
+  return event;
+}
+
+export async function updateEventTemplate(eventId: string, templateId: string | null) {
+  if (templateId) {
+    const exists = await BadgeTemplateModel.exists({ _id: templateId });
+    if (!exists) throw new AppError(404, 'Template not found');
+  }
+  const event = await EventModel.findByIdAndUpdate(
+    eventId,
+    { $set: { templateId } },
+    { returnDocument: 'after' },
+  ).lean();
   if (!event) throw new AppError(404, 'Event not found');
   return event;
 }

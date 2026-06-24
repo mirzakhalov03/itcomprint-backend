@@ -19,3 +19,8 @@ export async function getOne(req: Request, res: Response) {
   const event = await eventService.getEvent(String(req.params.id));
   res.json(event);
 }
+
+export async function setTemplate(req: Request, res: Response) {
+  const event = await eventService.updateEventTemplate(String(req.params.id), req.body.templateId);
+  res.json(event);
+}

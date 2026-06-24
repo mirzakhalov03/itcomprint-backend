@@ -18,3 +18,7 @@ export const createEventSchema = z.object({
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 
 export const eventIdParamSchema = z.object({ id: objectId });
+
+export const setEventTemplateSchema = z.object({
+  templateId: objectId.nullable(),
+});

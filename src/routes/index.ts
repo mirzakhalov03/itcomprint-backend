@@ -2,6 +2,7 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import { eventRouter } from './event.routes';
 import { attendeeRouter } from './attendee.routes';
+import { templateRouter } from './template.routes';
 import { authRouter } from './auth.routes';
 import { requireAuth } from '../middlewares/requireAuth.middleware';
 
@@ -17,3 +18,4 @@ apiRouter.get('/health', (_req, res) => {
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/events', requireAuth, eventRouter);
 apiRouter.use('/attendees', requireAuth, attendeeRouter);
+apiRouter.use('/templates', requireAuth, templateRouter);

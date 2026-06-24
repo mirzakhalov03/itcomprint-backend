@@ -262,6 +262,146 @@ async function main() {
     });
     check('POST print unknown attendee → 404', printMissing.status === 404, printMissing.status);
 
+    // --- BADGE TEMPLATES ---
+    // GET seeds and returns the default
+    const templates = await afetch('/templates').then((r) => r.json());
+    check(
+      'GET /templates → seeds a default',
+      Array.isArray(templates) &&
+        templates.length >= 1 &&
+        templates.some((t: { isDefault: boolean }) => t.isDefault),
+      templates,
+    );
+    const defaultTemplate = templates.find((t: { isDefault: boolean }) => t.isDefault);
+
+    // GET /templates again → still exactly one default (idempotent seed)
+    const templates2 = await afetch('/templates').then((r) => r.json());
+    check(
+      'GET /templates twice → exactly one default',
+      templates2.filter((t: { isDefault: boolean }) => t.isDefault).length === 1,
+      templates2,
+    );
+
+    // GET one
+    const oneTemplate = await afetch(`/templates/${defaultTemplate._id}`).then((r) => r.json());
+    check('GET /templates/:id → matching', oneTemplate._id === defaultTemplate._id, oneTemplate);
+
+    // unknown template → 404
+    const missingT = await afetch('/templates/0123456789abcdef01234567');
+    check('GET /templates/:unknown → 404', missingT.status === 404, missingT.status);
+
+    // field-keys includes the seeded attendee's extra key 'role'
+    const fieldKeys = await afetch('/templates/field-keys').then((r) => r.json());
+    check(
+      'GET /templates/field-keys → includes "role"',
+      Array.isArray(fieldKeys) && fieldKeys.includes('role'),
+      fieldKeys,
+    );
+
+    // create a custom template
+    const createTRes = await afetch('/templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Speaker badge',
+        labelWidthMm: 90,
+        labelHeightMm: 60,
+        zones: [
+          { id: 'n', field: 'fullName', fontSize: 5, bold: true, align: 'center', hidden: false },
+          { id: 'r', field: 'role', fontSize: 3, bold: false, align: 'center', hidden: false },
+        ],
+      }),
+    });
+    const customTemplate = await createTRes.json();
+    check('POST /templates → 201', createTRes.status === 201, createTRes.status);
+    check('POST /templates → isDefault false', customTemplate.isDefault === false, customTemplate);
+
+    // bad template body → 400
+    const badTRes = await afetch('/templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '', zones: [] }),
+    });
+    check('POST /templates empty name → 400', badTRes.status === 400, badTRes.status);
+
+    // update it
+    const updTRes = await afetch(`/templates/${customTemplate._id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Speaker badge v2',
+        labelWidthMm: 90,
+        labelHeightMm: 60,
+        zones: [
+          { id: 'n', field: 'fullName', fontSize: 6, bold: true, align: 'left', hidden: false },
+        ],
+      }),
+    });
+    const updatedTemplate = await updTRes.json();
+    check(
+      'PUT /templates/:id → name + zones updated',
+      updatedTemplate.name === 'Speaker badge v2' && updatedTemplate.zones.length === 1,
+      updatedTemplate,
+    );
+
+    // cannot delete the default
+    const delDefault = await afetch(`/templates/${defaultTemplate._id}`, { method: 'DELETE' });
+    check('DELETE default template → 400', delDefault.status === 400, delDefault.status);
+
+    // assign the custom template to the event
+    const setT = await afetch(`/events/${eventId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ templateId: customTemplate._id }),
+    }).then((r) => r.json());
+    check(
+      'PATCH /events/:id → templateId set',
+      String(setT.templateId) === customTemplate._id,
+      setT,
+    );
+
+    // bad templateId (not an ObjectId) → 400
+    const badAssign = await afetch(`/events/${eventId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ templateId: 'nope' }),
+    });
+    check('PATCH /events/:id bad templateId → 400', badAssign.status === 400, badAssign.status);
+
+    // unknown templateId → 404
+    const missingAssign = await afetch(`/events/${eventId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ templateId: '0123456789abcdef01234567' }),
+    });
+    check(
+      'PATCH /events/:id unknown template → 404',
+      missingAssign.status === 404,
+      missingAssign.status,
+    );
+
+    // delete the custom one
+    const delCustom = await afetch(`/templates/${customTemplate._id}`, { method: 'DELETE' });
+    check('DELETE custom template → 200', delCustom.status === 200, delCustom.status);
+    const afterDelete = await afetch(`/templates/${customTemplate._id}`);
+    check('GET deleted template → 404', afterDelete.status === 404, afterDelete.status);
+
+    // deleting the assigned template reverted the event to the default (null)
+    const eventAfterTDelete = await afetch(`/events/${eventId}`).then((r) => r.json());
+    check(
+      'event templateId reverts to null after its template is deleted',
+      eventAfterTDelete.templateId === null,
+      eventAfterTDelete,
+    );
+
+    // assign null explicitly → stays null
+    const setNull = await afetch(`/events/${eventId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ templateId: null }),
+    }).then((r) => r.json());
+    check('PATCH /events/:id templateId null → null', setNull.templateId === null, setNull);
+
     // --- LOGOUT ---
     const logoutRes = await afetch('/auth/logout', { method: 'POST' });
     check('POST /auth/logout → 204', logoutRes.status === 204, logoutRes.status);
