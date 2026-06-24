@@ -15,7 +15,7 @@
     "format": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "validate": "prettier --write . && eslint . --fix && tsc --noEmit",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "lint-staged": {
     "*.{ts,js,mjs}": [
