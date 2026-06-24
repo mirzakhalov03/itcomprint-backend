@@ -37,6 +37,10 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
 
   // Anything else is unexpected: always log it, but never leak internals to clients in prod.
   console.error('[error]', err);
-  const message = isProd ? 'Internal Server Error' : (err instanceof Error ? err.message : 'Internal Server Error');
+  const message = isProd
+    ? 'Internal Server Error'
+    : err instanceof Error
+      ? err.message
+      : 'Internal Server Error';
   return res.status(500).json({ error: 'InternalServerError', message });
 }

@@ -65,7 +65,12 @@ async function main() {
     check('GET /events without session → 401', noAuth.status === 401, noAuth.status);
 
     // google login (stubbed via test bypass) → new user + cookie
-    const profile = { sub: 'g-1', email: 'op@itcom.uz', name: 'Operator One', picture: 'http://img/1.png' };
+    const profile = {
+      sub: 'g-1',
+      email: 'op@itcom.uz',
+      name: 'Operator One',
+      picture: 'http://img/1.png',
+    };
     const loginRes = await fetch(`${base}/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -73,7 +78,11 @@ async function main() {
     });
     captureCookie(loginRes);
     const login = await loginRes.json();
-    check('POST /auth/google → 200, isNewUser=true', loginRes.status === 200 && login.isNewUser === true, login);
+    check(
+      'POST /auth/google → 200, isNewUser=true',
+      loginRes.status === 200 && login.isNewUser === true,
+      login,
+    );
     check('login set a session cookie', sessionCookie.startsWith('session='), sessionCookie);
     check('new user onboardedAt is null', login.user.onboardedAt === null, login.user);
 
@@ -163,7 +172,11 @@ async function main() {
     // unknown route → JSON 404
     const unknownRoute = await afetch('/nope');
     const unknownBody = await unknownRoute.json().catch(() => null);
-    check('GET /api/nope → JSON 404', unknownRoute.status === 404 && unknownBody?.error === 'NotFound', unknownBody);
+    check(
+      'GET /api/nope → JSON 404',
+      unknownRoute.status === 404 && unknownBody?.error === 'NotFound',
+      unknownBody,
+    );
 
     // malformed JSON body → 400
     const badJson = await afetch('/events', {
@@ -174,15 +187,29 @@ async function main() {
     check('POST /events with bad JSON → 400', badJson.status === 400, badJson.status);
 
     // search by name
-    const searchJane = await afetch(`/events/${eventId}/attendees?search=jane`).then((r) => r.json());
-    check('GET attendees?search=jane → only Jane', searchJane.length === 1 && searchJane[0].fullName === 'jane doe', searchJane);
+    const searchJane = await afetch(`/events/${eventId}/attendees?search=jane`).then((r) =>
+      r.json(),
+    );
+    check(
+      'GET attendees?search=jane → only Jane',
+      searchJane.length === 1 && searchJane[0].fullName === 'jane doe',
+      searchJane,
+    );
 
     // search hits denormalized extra (role=Speaker)
-    const searchRole = await afetch(`/events/${eventId}/attendees?search=speaker`).then((r) => r.json());
-    check('GET attendees?search=speaker → only John', searchRole.length === 1 && searchRole[0].fullName === 'john smith', searchRole);
+    const searchRole = await afetch(`/events/${eventId}/attendees?search=speaker`).then((r) =>
+      r.json(),
+    );
+    check(
+      'GET attendees?search=speaker → only John',
+      searchRole.length === 1 && searchRole[0].fullName === 'john smith',
+      searchRole,
+    );
 
     // filter by status
-    const notPrinted = await afetch(`/events/${eventId}/attendees?status=not_printed`).then((r) => r.json());
+    const notPrinted = await afetch(`/events/${eventId}/attendees?status=not_printed`).then((r) =>
+      r.json(),
+    );
     check('GET attendees?status=not_printed → both', notPrinted.length === 2, notPrinted);
 
     // invalid status → 400
@@ -191,17 +218,35 @@ async function main() {
 
     // print (first time)
     const janeId = searchJane[0]._id;
-    const printed1 = await afetch(`/attendees/${janeId}/print`, { method: 'POST' }).then((r) => r.json());
-    check('POST print → printStatus=printed, count=1', printed1.printStatus === 'printed' && printed1.printCount === 1, printed1);
-    check('POST print → lastPrintedAt set', printed1.lastPrintedAt !== null, printed1.lastPrintedAt);
+    const printed1 = await afetch(`/attendees/${janeId}/print`, { method: 'POST' }).then((r) =>
+      r.json(),
+    );
+    check(
+      'POST print → printStatus=printed, count=1',
+      printed1.printStatus === 'printed' && printed1.printCount === 1,
+      printed1,
+    );
+    check(
+      'POST print → lastPrintedAt set',
+      printed1.lastPrintedAt !== null,
+      printed1.lastPrintedAt,
+    );
 
     // reprint
-    const printed2 = await afetch(`/attendees/${janeId}/print`, { method: 'POST' }).then((r) => r.json());
+    const printed2 = await afetch(`/attendees/${janeId}/print`, { method: 'POST' }).then((r) =>
+      r.json(),
+    );
     check('POST print again (reprint) → count=2', printed2.printCount === 2, printed2);
 
     // status filter reflects the print
-    const printedList = await afetch(`/events/${eventId}/attendees?status=printed`).then((r) => r.json());
-    check('GET attendees?status=printed → only Jane', printedList.length === 1 && printedList[0]._id === janeId, printedList);
+    const printedList = await afetch(`/events/${eventId}/attendees?status=printed`).then((r) =>
+      r.json(),
+    );
+    check(
+      'GET attendees?status=printed → only Jane',
+      printedList.length === 1 && printedList[0]._id === janeId,
+      printedList,
+    );
 
     // list events again → printedCount reflects the print
     const eventsAfterPrint = await afetch('/events').then((r) => r.json());
@@ -212,7 +257,9 @@ async function main() {
     );
 
     // print unknown attendee → 404
-    const printMissing = await afetch('/attendees/0123456789abcdef01234567/print', { method: 'POST' });
+    const printMissing = await afetch('/attendees/0123456789abcdef01234567/print', {
+      method: 'POST',
+    });
     check('POST print unknown attendee → 404', printMissing.status === 404, printMissing.status);
 
     // --- LOGOUT ---

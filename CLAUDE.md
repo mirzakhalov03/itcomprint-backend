@@ -19,18 +19,18 @@ Env (`.env`, Zod-validated at startup — see `.env.example`): `NODE_ENV`, `PORT
 
 All routes are mounted under `/api` (`app.ts`):
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET  | `/health` | readiness — 200 `{ ok: true, db: 'up' }` only when Mongo is connected, else 503 |
-| POST | `/auth/google` | verify Google ID token, upsert user, set session cookie |
-| GET  | `/auth/me` | return current user (requires session) |
-| PATCH | `/auth/me` | update `displayName`, set `onboardedAt` on first call (requires session) |
-| POST | `/auth/logout` | clear session cookie (requires session) |
-| POST | `/events` | create an event **with its attendees** in one shot (requires session; stamps author) |
-| GET  | `/events` | list events, each with `attendeeCount` (requires session) |
-| GET  | `/events/:id` | one event (requires session) |
-| GET  | `/events/:id/attendees` | list attendees; `?search=` & `?status=printed\|not_printed` (requires session) |
-| POST | `/attendees/:id/print` | mark printed — also the reprint endpoint (requires session) |
+| Method | Path                    | Purpose                                                                              |
+| ------ | ----------------------- | ------------------------------------------------------------------------------------ |
+| GET    | `/health`               | readiness — 200 `{ ok: true, db: 'up' }` only when Mongo is connected, else 503      |
+| POST   | `/auth/google`          | verify Google ID token, upsert user, set session cookie                              |
+| GET    | `/auth/me`              | return current user (requires session)                                               |
+| PATCH  | `/auth/me`              | update `displayName`, set `onboardedAt` on first call (requires session)             |
+| POST   | `/auth/logout`          | clear session cookie (requires session)                                              |
+| POST   | `/events`               | create an event **with its attendees** in one shot (requires session; stamps author) |
+| GET    | `/events`               | list events, each with `attendeeCount` (requires session)                            |
+| GET    | `/events/:id`           | one event (requires session)                                                         |
+| GET    | `/events/:id/attendees` | list attendees; `?search=` & `?status=printed\|not_printed` (requires session)       |
+| POST   | `/attendees/:id/print`  | mark printed — also the reprint endpoint (requires session)                          |
 
 `/events` and `/attendees` are guarded by `requireAuth` (`middlewares/requireAuth.middleware.ts`), which reads the `session` httpOnly cookie, verifies the JWT, and attaches `req.user`. Auth routes are public.
 
@@ -51,7 +51,7 @@ Strict MVC: **`routes → controllers → services → models`**, plus `validato
 
 Two collections (`models/`):
 
-- **Event**: `name`, `date`, `createdAt`. `attendeeCount` is *not* stored — `listEvents` derives it via an `$group` aggregation over attendees.
+- **Event**: `name`, `date`, `createdAt`. `attendeeCount` is _not_ stored — `listEvents` derives it via an `$group` aggregation over attendees.
 - **Attendee**: `eventId`, `fullName`, `extra` (free-form `Record<string,string>` from spreadsheet columns), `searchText`, `printStatus`, `printCount`, `lastPrintedAt`.
 
 Domain rules baked into the services:

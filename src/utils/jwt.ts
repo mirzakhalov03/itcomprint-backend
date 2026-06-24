@@ -17,7 +17,11 @@ export function signSession(uid: string): string {
 export function verifySession(token: string): SessionPayload | null {
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET);
-    if (typeof decoded === 'object' && decoded !== null && typeof (decoded as { uid?: unknown }).uid === 'string') {
+    if (
+      typeof decoded === 'object' &&
+      decoded !== null &&
+      typeof (decoded as { uid?: unknown }).uid === 'string'
+    ) {
       return { uid: (decoded as { uid: string }).uid };
     }
     return null;
