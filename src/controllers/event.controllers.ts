@@ -17,6 +17,5 @@ export async function list(_req: Request, res: Response) {
 
 export async function getOne(req: Request, res: Response) {
   const event = await eventService.getEvent(String(req.params.id));
-  if (!event) return res.status(404).json({ error: 'Event not found' });
   res.json(event);
 }

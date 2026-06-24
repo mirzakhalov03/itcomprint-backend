@@ -5,12 +5,7 @@ import { setSessionCookie, clearSessionCookie } from '../utils/authCookie';
 
 export async function googleLogin(req: Request, res: Response) {
   const { idToken } = req.body as { idToken: string };
-  let profile;
-  try {
-    profile = await authService.verifyGoogleIdToken(idToken);
-  } catch {
-    return res.status(401).json({ error: 'Invalid Google token' });
-  }
+  const profile = await authService.verifyGoogleIdToken(idToken);
   const { user, isNewUser } = await authService.upsertUserFromGoogle(profile);
   setSessionCookie(res, signSession(String(user._id)));
   res.json({ user: authService.toPublicUser(user), isNewUser });

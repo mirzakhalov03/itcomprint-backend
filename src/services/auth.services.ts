@@ -1,6 +1,7 @@
 import { OAuth2Client } from 'google-auth-library';
 import { UserModel, UserDoc } from '../models/user.model';
 import { env, isTest } from '../config/env';
+import { AppError } from '../utils/AppError';
 
 export interface GoogleProfile {
   sub: string;
@@ -24,17 +25,23 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleProfil
   if (isTest && idToken.startsWith('test|')) {
     return JSON.parse(idToken.slice('test|'.length)) as GoogleProfile;
   }
-  const ticket = await client.verifyIdToken({ idToken, audience: env.GOOGLE_CLIENT_ID });
-  const payload = ticket.getPayload();
-  if (!payload?.sub || !payload.email) {
-    throw new Error('Invalid Google token payload');
+  // Any verification failure (bad signature, expired, missing claims) is a 401 —
+  // the controller no longer needs its own try/catch.
+  try {
+    const ticket = await client.verifyIdToken({ idToken, audience: env.GOOGLE_CLIENT_ID });
+    const payload = ticket.getPayload();
+    if (!payload?.sub || !payload.email) {
+      throw new Error('Invalid Google token payload');
+    }
+    return {
+      sub: payload.sub,
+      email: payload.email,
+      name: payload.name ?? payload.email,
+      picture: payload.picture ?? '',
+    };
+  } catch {
+    throw new AppError(401, 'Invalid Google token');
   }
-  return {
-    sub: payload.sub,
-    email: payload.email,
-    name: payload.name ?? payload.email,
-    picture: payload.picture ?? '',
-  };
 }
 
 export async function upsertUserFromGoogle(

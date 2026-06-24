@@ -1,6 +1,7 @@
 import { EventModel } from '../models/event.model';
 import { AttendeeModel } from '../models/attendee.model';
 import { CreateEventInput } from '../validators/event.validators';
+import { AppError } from '../utils/AppError';
 
 function buildSearchText(fullName: string, extra: Record<string, string>): string {
   return [fullName, ...Object.values(extra)].join(' ').toLowerCase();
@@ -48,5 +49,7 @@ export async function listEvents() {
 }
 
 export async function getEvent(id: string) {
-  return EventModel.findById(id).lean();
+  const event = await EventModel.findById(id).lean();
+  if (!event) throw new AppError(404, 'Event not found');
+  return event;
 }

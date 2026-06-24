@@ -8,6 +8,5 @@ export async function listByEvent(req: Request, res: Response) {
 
 export async function print(req: Request, res: Response) {
   const attendee = await attendeeService.markPrinted(String(req.params.id));
-  if (!attendee) return res.status(404).json({ error: 'Attendee not found' });
   res.json(attendee);
 }

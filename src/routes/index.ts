@@ -4,7 +4,6 @@ import { eventRouter } from './event.routes';
 import { attendeeRouter } from './attendee.routes';
 import { authRouter } from './auth.routes';
 import { requireAuth } from '../middlewares/requireAuth.middleware';
-import { asyncHandler } from '../utils/asyncHandler';
 
 export const apiRouter = Router();
 
@@ -16,5 +15,5 @@ apiRouter.get('/health', (_req, res) => {
 });
 
 apiRouter.use('/auth', authRouter);
-apiRouter.use('/events', asyncHandler(requireAuth), eventRouter);
-apiRouter.use('/attendees', asyncHandler(requireAuth), attendeeRouter);
+apiRouter.use('/events', requireAuth, eventRouter);
+apiRouter.use('/attendees', requireAuth, attendeeRouter);

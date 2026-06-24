@@ -1,5 +1,6 @@
 import { AttendeeModel } from '../models/attendee.model';
 import { ListAttendeesQuery } from '../validators/attendee.validators';
+import { AppError } from '../utils/AppError';
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -15,7 +16,7 @@ export async function listAttendees(eventId: string, query: ListAttendeesQuery) 
 }
 
 export async function markPrinted(attendeeId: string) {
-  return AttendeeModel.findByIdAndUpdate(
+  const attendee = await AttendeeModel.findByIdAndUpdate(
     attendeeId,
     {
       $inc: { printCount: 1 },
@@ -23,4 +24,6 @@ export async function markPrinted(attendeeId: string) {
     },
     { returnDocument: 'after' },
   ).lean();
+  if (!attendee) throw new AppError(404, 'Attendee not found');
+  return attendee;
 }
