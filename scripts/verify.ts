@@ -307,8 +307,8 @@ async function main() {
         labelWidthMm: 90,
         labelHeightMm: 60,
         zones: [
-          { id: 'n', field: 'fullName', fontSize: 5, bold: true, align: 'center', hidden: false },
-          { id: 'r', field: 'role', fontSize: 3, bold: false, align: 'center', hidden: false },
+          { id: 'n', field: 'fullName', fontSize: 14, bold: true, align: 'center', hidden: false },
+          { id: 'r', field: 'role', fontSize: 12, bold: false, align: 'center', hidden: false },
         ],
       }),
     });

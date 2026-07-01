@@ -5,7 +5,16 @@ import { AppError } from '../utils/AppError';
 import { CreateTemplateInput } from '../validators/template.validators';
 
 const DEFAULT_ZONES: Zone[] = [
-  { id: 'name', field: 'fullName', fontSize: 4, bold: true, align: 'center', hidden: false },
+  {
+    id: 'name',
+    type: 'field',
+    field: 'fullName',
+    fontFamily: 'Inter',
+    fontSize: 16,
+    bold: true,
+    align: 'center',
+    hidden: false,
+  },
 ];
 
 export async function ensureDefaultTemplate() {
