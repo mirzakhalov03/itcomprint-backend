@@ -1,0 +1,23 @@
+.env.example
+  s_8c26fd916723df::t_831bbebbc47e49 11-16
+scripts/verify.ts
+  s_8c26fd916723df::t_b5e5a760c2f7e6 31-33
+src/config/env.ts
+  s_8c26fd916723df::t_81016f1a181759 12-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "a56e70d864fa24806f9c592dae02cb4cfd7b1fc6",
+  "prompts": {},
+  "sessions": {
+    "s_8c26fd916723df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aa3d012f37c5b1b59",
+        "model": "unknown"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
