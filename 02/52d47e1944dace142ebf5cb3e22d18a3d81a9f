@@ -1,0 +1,21 @@
+scripts/verify.ts
+  s_553546744a8250::t_62523bf349b11c 40-70
+src/services/sheetSync.services.ts
+  s_553546744a8250::t_36a5a438f22ed5 1-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "0252d47e1944dace142ebf5cb3e22d18a3d81a9f",
+  "prompts": {},
+  "sessions": {
+    "s_553546744a8250": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a00d1fde2a09de866",
+        "model": "unknown"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
