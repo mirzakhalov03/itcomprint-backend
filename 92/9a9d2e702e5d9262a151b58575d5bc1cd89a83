@@ -1,0 +1,19 @@
+src/models/attendee.model.ts
+  s_3c8304516767db::t_63effb7aa40f8c 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "929a9d2e702e5d9262a151b58575d5bc1cd89a83",
+  "prompts": {},
+  "sessions": {
+    "s_3c8304516767db": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-abca9da1c4412c990",
+        "model": "unknown"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
