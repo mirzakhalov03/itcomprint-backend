@@ -30,7 +30,7 @@ attendeeSchema.index({ eventId: 1, searchText: 1 });
 // against each other under a non-sparse unique index.
 attendeeSchema.index(
   { eventId: 1, registrantId: 1 },
-  { unique: true, sparse: true, partialFilterExpression: { registrantId: { $ne: null } } },
+  { unique: true, partialFilterExpression: { registrantId: { $exists: true } } },
 );
 
 export const AttendeeModel = model<AttendeeDoc>('Attendee', attendeeSchema);
