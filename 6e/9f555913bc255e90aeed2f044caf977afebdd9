@@ -1,0 +1,29 @@
+scripts/verify.ts
+  s_850653be0382b4::t_5f94f95c522c89 71-88
+src/services/sheetSync.services.ts
+  s_adeade389358a6::t_697d89875944eb 1-4,53-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "6e9f555913bc255e90aeed2f044caf977afebdd9",
+  "prompts": {},
+  "sessions": {
+    "s_850653be0382b4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5f1efbb4-ae46-4082-9b4a-1f1df516d1be",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    },
+    "s_adeade389358a6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a36b8fe0864da27bb",
+        "model": "unknown"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
