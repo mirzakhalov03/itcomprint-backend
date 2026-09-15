@@ -1,8 +1,9 @@
 import { EventModel } from '../models/event.model';
 import { AttendeeModel } from '../models/attendee.model';
 import { BadgeTemplateModel } from '../models/badgeTemplate.model';
-import { CreateEventInput } from '../validators/event.validators';
+import { CreateEventInput, CreateEventFromSheetInput } from '../validators/event.validators';
 import { AppError } from '../utils/AppError';
+import { extractSheetId, syncEventAttendees } from './sheetSync.services';
 
 export function buildSearchText(fullName: string, extra: Record<string, string>): string {
   return [fullName, ...Object.values(extra)].join(' ').toLowerCase();
@@ -53,6 +54,36 @@ export async function getEvent(id: string) {
   const event = await EventModel.findById(id).lean();
   if (!event) throw new AppError(404, 'Event not found');
   return event;
+}
+
+export async function createEventFromSheet(
+  input: CreateEventFromSheetInput,
+  author: { id: string; name: string; picture: string },
+) {
+  const sheetId = extractSheetId(input.sheetUrl);
+  if (!sheetId) throw new AppError(400, 'Could not find a Google Sheet ID in that URL');
+
+  const event = await EventModel.create({
+    name: input.name,
+    date: new Date(input.date),
+    authorId: author.id,
+    authorName: author.name,
+    authorPicture: author.picture,
+    sheetId,
+    sheetUrl: input.sheetUrl,
+  });
+
+  try {
+    const result = await syncEventAttendees(String(event._id));
+    return { ...event.toObject(), attendeeCount: result.total - result.skipped, ...result };
+  } catch (err) {
+    await EventModel.findByIdAndDelete(event._id);
+    throw err;
+  }
+}
+
+export async function syncEventSheet(eventId: string) {
+  return syncEventAttendees(eventId);
 }
 
 export async function updateEventTemplate(eventId: string, templateId: string | null) {

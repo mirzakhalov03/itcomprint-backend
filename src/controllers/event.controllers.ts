@@ -24,3 +24,18 @@ export async function setTemplate(req: Request, res: Response) {
   const event = await eventService.updateEventTemplate(String(req.params.id), req.body.templateId);
   res.json(event);
 }
+
+export async function createFromSheet(req: Request, res: Response) {
+  const user = req.user!;
+  const event = await eventService.createEventFromSheet(req.body, {
+    id: String(user._id),
+    name: user.displayName,
+    picture: user.picture,
+  });
+  res.status(201).json(event);
+}
+
+export async function syncSheet(req: Request, res: Response) {
+  const result = await eventService.syncEventSheet(String(req.params.id));
+  res.json(result);
+}

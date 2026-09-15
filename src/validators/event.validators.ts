@@ -22,3 +22,11 @@ export const eventIdParamSchema = z.object({ id: objectId });
 export const setEventTemplateSchema = z.object({
   templateId: objectId.nullable(),
 });
+
+export const createEventFromSheetSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  date: z.iso.datetime({ offset: true }).or(z.iso.date()),
+  sheetUrl: z.string().url(),
+});
+
+export type CreateEventFromSheetInput = z.infer<typeof createEventFromSheetSchema>;

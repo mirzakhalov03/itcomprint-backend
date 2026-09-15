@@ -454,6 +454,57 @@ async function main() {
     }).then((r) => r.json());
     check('PATCH /events/:id templateId null → null', setNull.templateId === null, setNull);
 
+    // --- SHEET-LINKED EVENTS: creation + on-demand sync over HTTP ---
+    __setTestSheetRows('fixture-sheet-3', [
+      ['Reg. Number', 'First Name', 'Last Name', 'Occupation', 'Full Name'],
+      ['R1', 'Alice', 'Lee', 'Designer', 'Alice Lee'],
+    ]);
+    const createSheetEventRes = await afetch('/events/sheet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Bot Event',
+        date: '2026-10-01',
+        sheetUrl: 'https://docs.google.com/spreadsheets/d/fixture-sheet-3/edit',
+      }),
+    });
+    const sheetEvent = await createSheetEventRes.json();
+    check('POST /events/sheet → 201', createSheetEventRes.status === 201, sheetEvent);
+    check('POST /events/sheet → initial roster of 1', sheetEvent.added === 1, sheetEvent);
+
+    __setTestSheetRows('fixture-sheet-3', [
+      ['Reg. Number', 'First Name', 'Last Name', 'Occupation', 'Full Name'],
+      ['R1', 'Alice', 'Lee', 'Designer', 'Alice Lee'],
+      ['R2', 'Bob', 'Kim', 'PM', 'Bob Kim'], // walk-in registers mid-event
+    ]);
+    const syncRes = await afetch(`/events/${sheetEvent._id}/sync-sheet`, { method: 'POST' });
+    const syncBody = await syncRes.json();
+    check('POST /events/:id/sync-sheet → picks up the walk-in', syncBody.added === 1, syncBody);
+
+    const notLinkedEvents = await afetch('/events').then((r) => r.json());
+    const xlsxEvent = notLinkedEvents.find((e: { sheetId: string | null }) => !e.sheetId);
+    const badSyncRes = await afetch(`/events/${xlsxEvent._id}/sync-sheet`, { method: 'POST' });
+    check(
+      'POST /events/:id/sync-sheet on an XLSX event → 400',
+      badSyncRes.status === 400,
+      badSyncRes.status,
+    );
+
+    const badUrlRes = await afetch('/events/sheet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Bad',
+        date: '2026-10-01',
+        sheetUrl: 'https://example.com/not-a-sheet',
+      }),
+    });
+    check(
+      'POST /events/sheet with unparseable URL → 400',
+      badUrlRes.status === 400,
+      badUrlRes.status,
+    );
+
     // --- SHEET SYNC: upsert + orchestration (needs DB, no HTTP required) ---
     const { syncEventAttendees } = await import('../src/services/sheetSync.services');
     const { EventModel: SyncEventModel } = await import('../src/models/event.model');
