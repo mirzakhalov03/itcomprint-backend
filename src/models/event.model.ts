@@ -8,6 +8,9 @@ export interface EventDoc extends Document {
   authorPicture: string;
   createdAt: Date;
   templateId: Types.ObjectId | null;
+  sheetId: string | null;
+  sheetUrl: string | null;
+  lastSyncedAt: Date | null;
 }
 
 const eventSchema = new Schema<EventDoc>({
@@ -23,6 +26,9 @@ const eventSchema = new Schema<EventDoc>({
   // (resolved client-side at print time). Set via PATCH /events/:id.
   templateId: { type: Schema.Types.ObjectId, ref: 'BadgeTemplate', default: null },
   createdAt: { type: Date, default: Date.now },
+  sheetId: { type: String, default: null },
+  sheetUrl: { type: String, default: null },
+  lastSyncedAt: { type: Date, default: null },
 });
 
 export const EventModel = model<EventDoc>('Event', eventSchema);
