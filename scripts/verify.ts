@@ -37,6 +37,37 @@ async function main() {
   const { connectDb } = await import('../src/config/db');
   const mongoose = (await import('mongoose')).default;
 
+  // Sheet sync: pure column mapping (no DB, no network needed)
+  const { extractSheetId, mapSheetRows } = await import('../src/services/sheetSync.services');
+
+  check(
+    'extractSheetId parses a standard Sheets URL',
+    extractSheetId('https://docs.google.com/spreadsheets/d/abc123XYZ/edit#gid=0') === 'abc123XYZ',
+  );
+  check(
+    'extractSheetId returns null for a non-Sheets URL',
+    extractSheetId('https://example.com') === null,
+  );
+
+  const mapResult = mapSheetRows([
+    ['Reg. Number', 'First Name', 'Last Name', 'Occupation', 'Full Name'],
+    ['R1', 'Jane', 'Doe', 'Engineer', 'Jane Doe'],
+    ['', 'No', 'Reg', 'Id', 'No Reg Id'], // missing registrantId → skipped
+    ['R2', 'John', '', '', 'John Smith'],
+  ]);
+  check('mapSheetRows maps 2 valid rows', mapResult.mapped.length === 2, mapResult);
+  check('mapSheetRows skips 1 row missing registrantId', mapResult.skipped === 1, mapResult);
+  check(
+    'mapSheetRows puts Occupation into extra',
+    mapResult.mapped[0].extra.Occupation === 'Engineer',
+    mapResult.mapped[0],
+  );
+  check(
+    'mapSheetRows omits empty extra values',
+    !('Last Name' in mapResult.mapped[1].extra),
+    mapResult.mapped[1],
+  );
+
   await connectDb();
   const app = createApp();
   const server = app.listen(4055);
