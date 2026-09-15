@@ -1,0 +1,21 @@
+src/models/attendee.model.ts
+  s_3c8304516767db::t_6d6c076e6009be 13,24,29-35
+src/models/event.model.ts
+  s_3c8304516767db::t_37567345057d01 11-13,29-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "9bd1beb705a97f6c6f034c4f100c9542c5e2d3a7",
+  "prompts": {},
+  "sessions": {
+    "s_3c8304516767db": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-abca9da1c4412c990",
+        "model": "unknown"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
