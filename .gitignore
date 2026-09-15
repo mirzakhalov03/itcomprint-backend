@@ -1,5 +1,6 @@
 node_modules
 dist
+.worktrees
 
 # env files (keep the example committed)
 .env
