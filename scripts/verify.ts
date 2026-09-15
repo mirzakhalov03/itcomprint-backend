@@ -28,6 +28,9 @@ async function main() {
   process.env.PORT = '4055';
   process.env.GOOGLE_CLIENT_ID = 'test-client-id';
   process.env.JWT_SECRET = 'test-secret-at-least-16-chars-long';
+  process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = 'test-sheet-sync@example.iam.gserviceaccount.com';
+  process.env.GOOGLE_SERVICE_ACCOUNT_KEY =
+    'test-key-unused-because-fetchSheetRows-is-stubbed-in-test-mode';
 
   // Import AFTER env is set so config/env picks up the in-memory URI.
   const { createApp } = await import('../src/app');
