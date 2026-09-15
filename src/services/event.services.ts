@@ -4,7 +4,7 @@ import { BadgeTemplateModel } from '../models/badgeTemplate.model';
 import { CreateEventInput } from '../validators/event.validators';
 import { AppError } from '../utils/AppError';
 
-function buildSearchText(fullName: string, extra: Record<string, string>): string {
+export function buildSearchText(fullName: string, extra: Record<string, string>): string {
   return [fullName, ...Object.values(extra)].join(' ').toLowerCase();
 }
 

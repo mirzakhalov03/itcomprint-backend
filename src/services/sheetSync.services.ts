@@ -1,6 +1,10 @@
+import { Types } from 'mongoose';
 import { JWT } from 'google-auth-library';
 import { env, isTest } from '../config/env';
 import { AppError } from '../utils/AppError';
+import { AttendeeModel } from '../models/attendee.model';
+import { EventModel } from '../models/event.model';
+import { buildSearchText } from './event.services';
 
 export function extractSheetId(url: string): string | null {
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -94,4 +98,55 @@ export async function fetchSheetRows(sheetId: string): Promise<string[][]> {
       `Can't read this Google Sheet — share it with ${env.GOOGLE_SERVICE_ACCOUNT_EMAIL} and try again.`,
     );
   }
+}
+
+export async function syncRowsIntoEvent(
+  eventId: string,
+  rows: MappedRow[],
+): Promise<{ added: number; updated: number }> {
+  if (rows.length === 0) return { added: 0, updated: 0 };
+
+  // Cast explicitly: the schema declares eventId as ObjectId, but this
+  // function takes a string (as callers — e.g. route params — have it).
+  // Mongoose casts bulkWrite filter/update documents against the schema
+  // at runtime either way, but the typed bulkWrite() overload requires the
+  // shape to already match AttendeeDoc, so TS needs the cast too.
+  const eventObjectId = new Types.ObjectId(eventId);
+
+  const result = await AttendeeModel.bulkWrite(
+    rows.map((row) => ({
+      updateOne: {
+        filter: { eventId: eventObjectId, registrantId: row.registrantId },
+        update: {
+          $set: {
+            eventId: eventObjectId,
+            registrantId: row.registrantId,
+            fullName: row.fullName,
+            extra: row.extra,
+            searchText: buildSearchText(row.fullName, row.extra),
+          },
+        },
+        upsert: true,
+      },
+    })),
+  );
+
+  return { added: result.upsertedCount, updated: result.modifiedCount };
+}
+
+export async function syncEventAttendees(
+  eventId: string,
+): Promise<{ added: number; updated: number; skipped: number; total: number }> {
+  const event = await EventModel.findById(eventId);
+  if (!event) throw new AppError(404, 'Event not found');
+  if (!event.sheetId) throw new AppError(400, 'Event is not linked to a sheet');
+
+  const rows = await fetchSheetRows(event.sheetId);
+  const { mapped, skipped } = mapSheetRows(rows);
+  const { added, updated } = await syncRowsIntoEvent(eventId, mapped);
+
+  event.lastSyncedAt = new Date();
+  await event.save();
+
+  return { added, updated, skipped, total: mapped.length + skipped };
 }

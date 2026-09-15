@@ -454,6 +454,68 @@ async function main() {
     }).then((r) => r.json());
     check('PATCH /events/:id templateId null → null', setNull.templateId === null, setNull);
 
+    // --- SHEET SYNC: upsert + orchestration (needs DB, no HTTP required) ---
+    const { syncEventAttendees } = await import('../src/services/sheetSync.services');
+    const { EventModel: SyncEventModel } = await import('../src/models/event.model');
+    const { AttendeeModel: SyncAttendeeModel } = await import('../src/models/attendee.model');
+
+    const syncEvent = await SyncEventModel.create({
+      name: 'Sync Test Event',
+      date: new Date(),
+      authorId: new mongoose.Types.ObjectId(),
+      sheetId: 'fixture-sheet-2',
+    });
+
+    check(
+      'syncEventAttendees → 400 when event has no sheetId',
+      await SyncEventModel.create({
+        name: 'No Sheet',
+        date: new Date(),
+        authorId: new mongoose.Types.ObjectId(),
+      })
+        .then((e) => syncEventAttendees(String(e._id)))
+        .then(
+          () => false,
+          (err) => err.status === 400,
+        ),
+    );
+
+    __setTestSheetRows('fixture-sheet-2', [
+      ['Reg. Number', 'First Name', 'Last Name', 'Occupation', 'Full Name'],
+      ['R1', 'Jane', 'Doe', 'Engineer', 'Jane Doe'],
+    ]);
+    const firstSync = await syncEventAttendees(String(syncEvent._id));
+    check(
+      'first sync → 1 added, 0 updated',
+      firstSync.added === 1 && firstSync.updated === 0,
+      firstSync,
+    );
+
+    __setTestSheetRows('fixture-sheet-2', [
+      ['Reg. Number', 'First Name', 'Last Name', 'Occupation', 'Full Name'],
+      ['R1', 'Jane', 'Doe', 'Senior Engineer', 'Jane Doe'], // Occupation changed
+      ['R2', 'John', 'Smith', '', 'John Smith'], // new registrant (walk-in)
+    ]);
+    const secondSync = await syncEventAttendees(String(syncEvent._id));
+    check(
+      'second sync → 1 added (walk-in), 1 updated (changed)',
+      secondSync.added === 1 && secondSync.updated === 1,
+      secondSync,
+    );
+
+    const attendeesAfterSync = await SyncAttendeeModel.find({ eventId: syncEvent._id }).lean();
+    check(
+      'event now has 2 attendees total',
+      attendeesAfterSync.length === 2,
+      attendeesAfterSync.length,
+    );
+    check(
+      "Jane's occupation was updated in place, not duplicated",
+      attendeesAfterSync.find((a) => a.registrantId === 'R1')?.extra.Occupation ===
+        'Senior Engineer',
+      attendeesAfterSync.find((a) => a.registrantId === 'R1'),
+    );
+
     // --- LOGOUT ---
     const logoutRes = await afetch('/auth/logout', { method: 'POST' });
     check('POST /auth/logout → 204', logoutRes.status === 204, logoutRes.status);
