@@ -68,6 +68,24 @@ async function main() {
     mapResult.mapped[1],
   );
 
+  const { fetchSheetRows, __setTestSheetRows } = await import('../src/services/sheetSync.services');
+
+  check(
+    'fetchSheetRows returns [] for an unset sheetId',
+    (await fetchSheetRows('unset-sheet')).length === 0,
+  );
+
+  __setTestSheetRows('fixture-sheet-1', [
+    ['Reg. Number', 'First Name', 'Last Name', 'Occupation', 'Full Name'],
+    ['R1', 'Jane', 'Doe', 'Engineer', 'Jane Doe'],
+  ]);
+  const fixtureRows = await fetchSheetRows('fixture-sheet-1');
+  check(
+    'fetchSheetRows returns the fixture rows set for a sheetId',
+    fixtureRows.length === 2,
+    fixtureRows,
+  );
+
   await connectDb();
   const app = createApp();
   const server = app.listen(4055);

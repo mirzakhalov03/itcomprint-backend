@@ -1,3 +1,7 @@
+import { JWT } from 'google-auth-library';
+import { env, isTest } from '../config/env';
+import { AppError } from '../utils/AppError';
+
 export function extractSheetId(url: string): string | null {
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   return match ? match[1] : null;
@@ -45,4 +49,49 @@ export function mapSheetRows(rows: string[][]): { mapped: MappedRow[]; skipped: 
     mapped.push({ registrantId, fullName, extra });
   }
   return { mapped, skipped };
+}
+
+const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+
+let jwtClient: JWT | null = null;
+function getJwtClient(): JWT {
+  if (!jwtClient) {
+    jwtClient = new JWT({
+      email: env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      key: env.GOOGLE_SERVICE_ACCOUNT_KEY.replace(/\\n/g, '\n'),
+      scopes: [SHEETS_SCOPE],
+    });
+  }
+  return jwtClient;
+}
+
+/**
+ * TEST BYPASS: when NODE_ENV=test, rows come from an in-memory fixture set
+ * via __setTestSheetRows instead of a real Sheets API call — mirrors the
+ * test|{...} bypass pattern in auth.services.ts. isTest is false outside
+ * the verify harness, so this branch is dead code in dev/prod.
+ */
+const testRowsBySheetId = new Map<string, string[][]>();
+
+export function __setTestSheetRows(sheetId: string, rows: string[][]): void {
+  if (!isTest) throw new Error('__setTestSheetRows is test-only');
+  testRowsBySheetId.set(sheetId, rows);
+}
+
+export async function fetchSheetRows(sheetId: string): Promise<string[][]> {
+  if (isTest) {
+    return testRowsBySheetId.get(sheetId) ?? [];
+  }
+  const client = getJwtClient();
+  try {
+    const res = await client.request<{ values?: string[][] }>({
+      url: `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A:Z`,
+    });
+    return res.data.values ?? [];
+  } catch {
+    throw new AppError(
+      400,
+      `Can't read this Google Sheet — share it with ${env.GOOGLE_SERVICE_ACCOUNT_EMAIL} and try again.`,
+    );
+  }
 }
