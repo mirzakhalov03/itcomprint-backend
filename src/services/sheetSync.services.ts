@@ -92,7 +92,8 @@ export async function fetchSheetRows(sheetId: string): Promise<string[][]> {
       url: `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A:Z`,
     });
     return res.data.values ?? [];
-  } catch {
+  } catch (err) {
+    console.error('[sheetSync] fetchSheetRows failed for sheetId', sheetId, err);
     throw new AppError(
       400,
       `Can't read this Google Sheet — share it with ${env.GOOGLE_SERVICE_ACCOUNT_EMAIL} and try again.`,

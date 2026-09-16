@@ -77,6 +77,7 @@ export async function createEventFromSheet(
     const result = await syncEventAttendees(String(event._id));
     return { ...event.toObject(), attendeeCount: result.total - result.skipped, ...result };
   } catch (err) {
+    await AttendeeModel.deleteMany({ eventId: event._id });
     await EventModel.findByIdAndDelete(event._id);
     throw err;
   }
