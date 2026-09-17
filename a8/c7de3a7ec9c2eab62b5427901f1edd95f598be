@@ -1,0 +1,31 @@
+scripts/verify.ts
+  s_d8b340aaf2a2c4::t_5926e17f83f47f 241-243,245-247,249,252,273-274,276-279
+src/controllers/attendee.controllers.ts
+  s_2b3a2bfa2d5c59::t_aedc5752a95bc7 5
+src/services/attendee.services.ts
+  s_2b3a2bfa2d5c59::t_2ef2c1c409b60b 4-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "a8c7de3a7ec9c2eab62b5427901f1edd95f598be",
+  "prompts": {},
+  "sessions": {
+    "s_2b3a2bfa2d5c59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a9a882ea1552189fa",
+        "model": "unknown"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    },
+    "s_d8b340aaf2a2c4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "20e219b2-b075-4e5b-82ed-cc8c57230efd",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
