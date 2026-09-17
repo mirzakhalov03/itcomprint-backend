@@ -4,7 +4,6 @@ import { env, isTest } from '../config/env';
 import { AppError } from '../utils/AppError';
 import { AttendeeModel } from '../models/attendee.model';
 import { EventModel } from '../models/event.model';
-import { buildSearchText } from './event.services';
 
 export function extractSheetId(url: string): string | null {
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -136,7 +135,6 @@ export async function syncRowsIntoEvent(
             registrantId: row.registrantId,
             fullName: row.fullName,
             extra: row.extra,
-            searchText: buildSearchText(row.fullName, row.extra),
           },
         },
         upsert: true,

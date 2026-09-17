@@ -8,7 +8,6 @@ import {
   eventIdParamSchema,
   updateEventSchema,
 } from '../validators/event.validators';
-import { listAttendeesQuerySchema } from '../validators/attendee.validators';
 
 export const eventRouter = Router();
 
@@ -38,7 +37,6 @@ eventRouter.delete(
 eventRouter.get(
   '/:id/attendees',
   validate(eventIdParamSchema, 'params'),
-  validate(listAttendeesQuerySchema, 'query'),
   attendeeController.listByEvent,
 );
 

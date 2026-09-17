@@ -11,10 +11,6 @@ import { extractSheetId, syncEventAttendees } from './sheetSync.services';
 
 const TRASH_RETENTION_DAYS = 45;
 
-export function buildSearchText(fullName: string, extra: Record<string, string>): string {
-  return [fullName, ...Object.values(extra)].join(' ').toLowerCase();
-}
-
 export async function createEventWithAttendees(
   input: CreateEventInput,
   author: { id: string; name: string; picture: string },
@@ -31,7 +27,6 @@ export async function createEventWithAttendees(
     eventId: event._id,
     fullName: a.fullName,
     extra: a.extra,
-    searchText: buildSearchText(a.fullName, a.extra),
   }));
   await AttendeeModel.insertMany(docs);
 

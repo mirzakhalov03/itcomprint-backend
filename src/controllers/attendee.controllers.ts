@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import * as attendeeService from '../services/attendee.services';
 
 export async function listByEvent(req: Request, res: Response) {
-  const attendees = await attendeeService.listAttendees(String(req.params.id), req.query);
+  const attendees = await attendeeService.listAttendees(String(req.params.id));
   res.json(attendees);
 }
 

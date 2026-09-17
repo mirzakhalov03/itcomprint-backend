@@ -238,38 +238,18 @@ async function main() {
     });
     check('POST /events with bad JSON → 400', badJson.status === 400, badJson.status);
 
-    // search by name
-    const searchJane = await afetch(`/events/${eventId}/attendees?search=jane`).then((r) =>
-      r.json(),
-    );
+    // full roster: search/filter are client-side, so no query params and no search index field
+    const roster = await afetch(`/events/${eventId}/attendees`).then((r) => r.json());
+    check('GET attendees → full roster of 2', roster.length === 2, roster);
     check(
-      'GET attendees?search=jane → only Jane',
-      searchJane.length === 1 && searchJane[0].fullName === 'jane doe',
-      searchJane,
+      'GET attendees → payload omits searchText and __v',
+      roster.every((a: object) => !('searchText' in a) && !('__v' in a)),
+      roster[0],
     );
-
-    // search hits denormalized extra (role=Speaker)
-    const searchRole = await afetch(`/events/${eventId}/attendees?search=speaker`).then((r) =>
-      r.json(),
-    );
-    check(
-      'GET attendees?search=speaker → only John',
-      searchRole.length === 1 && searchRole[0].fullName === 'john smith',
-      searchRole,
-    );
-
-    // filter by status
-    const notPrinted = await afetch(`/events/${eventId}/attendees?status=not_printed`).then((r) =>
-      r.json(),
-    );
-    check('GET attendees?status=not_printed → both', notPrinted.length === 2, notPrinted);
-
-    // invalid status → 400
-    const badStatus = await afetch(`/events/${eventId}/attendees?status=bogus`);
-    check('GET attendees?status=bogus → 400', badStatus.status === 400, badStatus.status);
+    const jane = roster.find((a: { fullName: string }) => a.fullName === 'jane doe');
 
     // print (first time)
-    const janeId = searchJane[0]._id;
+    const janeId = jane._id;
     const printed1 = await afetch(`/attendees/${janeId}/print`, { method: 'POST' }).then((r) =>
       r.json(),
     );
@@ -290,14 +270,13 @@ async function main() {
     );
     check('POST print again (reprint) → count=2', printed2.printCount === 2, printed2);
 
-    // status filter reflects the print
-    const printedList = await afetch(`/events/${eventId}/attendees?status=printed`).then((r) =>
-      r.json(),
-    );
+    // roster reflects the print
+    const rosterAfterPrint = await afetch(`/events/${eventId}/attendees`).then((r) => r.json());
     check(
-      'GET attendees?status=printed → only Jane',
-      printedList.length === 1 && printedList[0]._id === janeId,
-      printedList,
+      'GET attendees after print → Jane printed, John not',
+      rosterAfterPrint.filter((a: { printStatus: string }) => a.printStatus === 'printed')
+        .length === 1,
+      rosterAfterPrint,
     );
 
     // list events again → printedCount reflects the print

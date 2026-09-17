@@ -1,18 +1,9 @@
 import { AttendeeModel } from '../models/attendee.model';
-import { ListAttendeesQuery } from '../validators/attendee.validators';
 import { AppError } from '../utils/AppError';
 
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-export async function listAttendees(eventId: string, query: ListAttendeesQuery) {
-  const filter: Record<string, unknown> = { eventId };
-  if (query.status) filter.printStatus = query.status;
-  if (query.search) {
-    filter.searchText = { $regex: escapeRegex(query.search.toLowerCase()) };
-  }
-  return AttendeeModel.find(filter).sort({ _id: 1 }).lean();
+// Full roster: the kiosk searches and filters in memory. searchText is excluded because pre-cleanup docs still carry it.
+export async function listAttendees(eventId: string) {
+  return AttendeeModel.find({ eventId }).select('-searchText -__v').sort({ _id: 1 }).lean();
 }
 
 export async function markPrinted(attendeeId: string) {
