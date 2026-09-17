@@ -436,6 +436,7 @@ async function main() {
     // --- EVENT EDIT / TRASH / RESTORE / PERMANENT DELETE ---
     const { EventModel: TrashEventModel } = await import('../src/models/event.model');
     const { AttendeeModel: TrashAttendeeModel } = await import('../src/models/attendee.model');
+    const { purgeExpiredTrash } = await import('../src/services/event.services');
 
     // rename + reschedule via the broadened PATCH
     const renamed = await afetch(`/events/${eventId}`, {
@@ -486,6 +487,14 @@ async function main() {
     check('GET /events/:id on trashed event → 404', getTrashed.status === 404, getTrashed.status);
 
     const trashList = await afetch('/events/trash').then((r) => r.json());
+    const trashedItem = trashList.find((e: { _id: string }) => e._id === trashEventId);
+    check(
+      'GET /events/trash → item has purgeAt 45 days after deletedAt',
+      !!trashedItem &&
+        new Date(trashedItem.purgeAt).getTime() - new Date(trashedItem.deletedAt).getTime() ===
+          45 * 24 * 60 * 60 * 1000,
+      trashedItem,
+    );
     check(
       'GET /events/trash includes it',
       trashList.some((e: { _id: string }) => e._id === trashEventId),
@@ -544,7 +553,7 @@ async function main() {
       trashListAfterPerm,
     );
 
-    // lazy purge: an event trashed 46 days ago is hard-deleted the next time trash is listed
+    // purge job: an event trashed 46 days ago is hidden from trash, then hard-deleted by the job
     const expiredCreateRes = await afetch('/events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -560,12 +569,14 @@ async function main() {
 
     const trashListAfterExpiry = await afetch('/events/trash').then((r) => r.json());
     check(
-      'GET /events/trash lazily purges items past 45 days',
+      'GET /events/trash hides items past 45 days',
       !trashListAfterExpiry.some((e: { _id: string }) => e._id === expiredEvent._id),
       trashListAfterExpiry,
     );
+    const purgedCount = await purgeExpiredTrash();
+    check('purgeExpiredTrash hard-deletes the expired event', purgedCount === 1, purgedCount);
     const expiredAttendees = await TrashAttendeeModel.find({ eventId: expiredEvent._id }).lean();
-    check('lazy purge cascades to attendees', expiredAttendees.length === 0, expiredAttendees);
+    check('purge cascades to attendees', expiredAttendees.length === 0, expiredAttendees);
 
     // --- SHEET-LINKED EVENTS: creation + on-demand sync over HTTP ---
     __setTestSheetRows('fixture-sheet-3', [
@@ -593,6 +604,11 @@ async function main() {
     const syncRes = await afetch(`/events/${sheetEvent._id}/sync-sheet`, { method: 'POST' });
     const syncBody = await syncRes.json();
     check('POST /events/:id/sync-sheet → picks up the walk-in', syncBody.added === 1, syncBody);
+    check(
+      'POST /events/:id/sync-sheet → returns lastSyncedAt',
+      typeof syncBody.lastSyncedAt === 'string' && !Number.isNaN(Date.parse(syncBody.lastSyncedAt)),
+      syncBody,
+    );
 
     const notLinkedEvents = await afetch('/events').then((r) => r.json());
     const xlsxEvent = notLinkedEvents.find((e: { sheetId: string | null }) => !e.sheetId);

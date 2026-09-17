@@ -145,10 +145,14 @@ export async function syncRowsIntoEvent(
   return { added: result.upsertedCount, updated: result.modifiedCount };
 }
 
-export async function syncEventAttendees(
-  eventId: string,
-): Promise<{ added: number; updated: number; skipped: number; total: number }> {
-  const event = await EventModel.findById(eventId);
+export async function syncEventAttendees(eventId: string): Promise<{
+  added: number;
+  updated: number;
+  skipped: number;
+  total: number;
+  lastSyncedAt: Date;
+}> {
+  const event = await EventModel.findOne({ _id: eventId, deletedAt: null });
   if (!event) throw new AppError(404, 'Event not found');
   if (!event.sheetId) throw new AppError(400, 'Event is not linked to a sheet');
 
@@ -159,5 +163,11 @@ export async function syncEventAttendees(
   event.lastSyncedAt = new Date();
   await event.save();
 
-  return { added, updated, skipped, total: mapped.length + skipped };
+  return {
+    added,
+    updated,
+    skipped,
+    total: mapped.length + skipped,
+    lastSyncedAt: event.lastSyncedAt!,
+  };
 }

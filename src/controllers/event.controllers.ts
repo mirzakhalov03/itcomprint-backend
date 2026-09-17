@@ -1,13 +1,9 @@
 import { Request, Response } from 'express';
 import * as eventService from '../services/event.services';
+import { toAuthor } from '../utils/author';
 
 export async function create(req: Request, res: Response) {
-  const user = req.user!; // guaranteed by requireAuth on the /events router
-  const event = await eventService.createEventWithAttendees(req.body, {
-    id: String(user._id),
-    name: user.displayName,
-    picture: user.picture,
-  });
+  const event = await eventService.createEventWithAttendees(req.body, toAuthor(req.user!));
   res.status(201).json(event);
 }
 
@@ -45,12 +41,7 @@ export async function listTrash(_req: Request, res: Response) {
 }
 
 export async function createFromSheet(req: Request, res: Response) {
-  const user = req.user!;
-  const event = await eventService.createEventFromSheet(req.body, {
-    id: String(user._id),
-    name: user.displayName,
-    picture: user.picture,
-  });
+  const event = await eventService.createEventFromSheet(req.body, toAuthor(req.user!));
   res.status(201).json(event);
 }
 

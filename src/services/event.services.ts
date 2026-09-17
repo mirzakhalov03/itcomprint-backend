@@ -7,14 +7,16 @@ import {
   UpdateEventInput,
 } from '../validators/event.validators';
 import { AppError } from '../utils/AppError';
+import type { Author } from '../utils/author';
 import { extractSheetId, syncEventAttendees } from './sheetSync.services';
 
-const TRASH_RETENTION_DAYS = 45;
+// Creation isn't transactional: undo a half-created event so no empty event is left behind.
+async function deleteEventCascade(eventId: string) {
+  await AttendeeModel.deleteMany({ eventId });
+  await EventModel.findByIdAndDelete(eventId);
+}
 
-export async function createEventWithAttendees(
-  input: CreateEventInput,
-  author: { id: string; name: string; picture: string },
-) {
+export async function createEventWithAttendees(input: CreateEventInput, author: Author) {
   const event = await EventModel.create({
     name: input.name,
     date: new Date(input.date),
@@ -28,13 +30,20 @@ export async function createEventWithAttendees(
     fullName: a.fullName,
     extra: a.extra,
   }));
-  await AttendeeModel.insertMany(docs);
+  try {
+    await AttendeeModel.insertMany(docs);
+  } catch (err) {
+    await deleteEventCascade(String(event._id));
+    throw err;
+  }
 
   return { ...event.toObject(), attendeeCount: docs.length };
 }
 
 async function withAttendeeCounts<T extends { _id: unknown }>(events: T[]) {
   const counts = await AttendeeModel.aggregate<{ _id: unknown; count: number; printed: number }>([
+    // Scope to the listed events so cost tracks the screen, not total history.
+    { $match: { eventId: { $in: events.map((e) => e._id) } } },
     {
       $group: {
         _id: '$eventId',
@@ -61,10 +70,7 @@ export async function getEvent(id: string) {
   return event;
 }
 
-export async function createEventFromSheet(
-  input: CreateEventFromSheetInput,
-  author: { id: string; name: string; picture: string },
-) {
+export async function createEventFromSheet(input: CreateEventFromSheetInput, author: Author) {
   const sheetId = extractSheetId(input.sheetUrl);
   if (!sheetId) throw new AppError(400, 'Could not find a Google Sheet ID in that URL');
 
@@ -82,8 +88,7 @@ export async function createEventFromSheet(
     const result = await syncEventAttendees(String(event._id));
     return { ...event.toObject(), attendeeCount: result.total - result.skipped, ...result };
   } catch (err) {
-    await AttendeeModel.deleteMany({ eventId: event._id });
-    await EventModel.findByIdAndDelete(event._id);
+    await deleteEventCascade(String(event._id));
     throw err;
   }
 }
@@ -137,17 +142,27 @@ export async function permanentlyDeleteEvent(eventId: string) {
   await AttendeeModel.deleteMany({ eventId });
 }
 
-export async function listTrash() {
-  const cutoff = new Date(Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000);
-  const expired = await EventModel.find({ deletedAt: { $lte: cutoff } }, { _id: 1 }).lean();
-  if (expired.length > 0) {
-    const expiredIds = expired.map((e) => e._id);
-    await AttendeeModel.deleteMany({ eventId: { $in: expiredIds } });
-    await EventModel.deleteMany({ _id: { $in: expiredIds } });
-  }
+const TRASH_RETENTION_MS = 45 * 24 * 60 * 60 * 1000;
 
-  const events = await EventModel.find({ deletedAt: { $ne: null } })
+const trashCutoff = () => new Date(Date.now() - TRASH_RETENTION_MS);
+
+// Hard-deletes events trashed longer than the retention window. Runs on a timer from server.ts.
+export async function purgeExpiredTrash(): Promise<number> {
+  const expiredIds = await EventModel.find({ deletedAt: { $lte: trashCutoff() } }).distinct('_id');
+  if (expiredIds.length === 0) return 0;
+  await AttendeeModel.deleteMany({ eventId: { $in: expiredIds } });
+  await EventModel.deleteMany({ _id: { $in: expiredIds } });
+  return expiredIds.length;
+}
+
+export async function listTrash() {
+  // $gt a Date also excludes null, so this lists only trashed events still inside the window.
+  const events = await EventModel.find({ deletedAt: { $gt: trashCutoff() } })
     .sort({ deletedAt: -1 })
     .lean();
-  return withAttendeeCounts(events);
+  const withCounts = await withAttendeeCounts(events);
+  return withCounts.map((e) => ({
+    ...e,
+    purgeAt: new Date(e.deletedAt!.getTime() + TRASH_RETENTION_MS),
+  }));
 }

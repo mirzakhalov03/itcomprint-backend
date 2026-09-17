@@ -2,6 +2,7 @@ import type { Server } from 'http';
 import { createApp } from './app';
 import { connectDb, disconnectDb } from './config/db';
 import { env } from './config/env';
+import { purgeExpiredTrash } from './services/event.services';
 
 async function main() {
   await connectDb();
@@ -9,6 +10,18 @@ async function main() {
   const server = app.listen(env.PORT, () => console.log(`[server] listening on :${env.PORT}`));
 
   registerShutdown(server);
+  schedulePurge();
+}
+
+const PURGE_INTERVAL_MS = 60 * 60 * 1000;
+
+function schedulePurge() {
+  const run = () =>
+    purgeExpiredTrash()
+      .then((n) => n > 0 && console.log(`[trash] purged ${n} expired event(s)`))
+      .catch((err) => console.error('[trash] purge failed', err));
+  void run();
+  setInterval(run, PURGE_INTERVAL_MS).unref(); // unref: never keeps a shutting-down process alive
 }
 
 function registerShutdown(server: Server) {
