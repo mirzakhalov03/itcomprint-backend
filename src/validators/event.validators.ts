@@ -19,9 +19,16 @@ export type CreateEventInput = z.infer<typeof createEventSchema>;
 
 export const eventIdParamSchema = z.object({ id: objectId });
 
-export const setEventTemplateSchema = z.object({
-  templateId: objectId.nullable(),
-});
+export const updateEventSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    date: z.iso.datetime({ offset: true }).or(z.iso.date()),
+    templateId: objectId.nullable(),
+  })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, 'No fields to update');
+
+export type UpdateEventInput = z.infer<typeof updateEventSchema>;
 
 export const createEventFromSheetSchema = z.object({
   name: z.string().trim().min(1).max(200),

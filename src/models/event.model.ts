@@ -11,6 +11,7 @@ export interface EventDoc extends Document {
   sheetId: string | null;
   sheetUrl: string | null;
   lastSyncedAt: Date | null;
+  deletedAt: Date | null;
 }
 
 const eventSchema = new Schema<EventDoc>({
@@ -29,6 +30,9 @@ const eventSchema = new Schema<EventDoc>({
   sheetId: { type: String, default: null },
   sheetUrl: { type: String, default: null },
   lastSyncedAt: { type: Date, default: null },
+  // Soft-delete: set when an event is moved to trash, cleared on restore.
+  // Trashed events are hidden from listEvents and hard-deleted 45 days later.
+  deletedAt: { type: Date, default: null, index: true },
 });
 
 export const EventModel = model<EventDoc>('Event', eventSchema);

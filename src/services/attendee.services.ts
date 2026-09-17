@@ -12,7 +12,7 @@ export async function listAttendees(eventId: string, query: ListAttendeesQuery) 
   if (query.search) {
     filter.searchText = { $regex: escapeRegex(query.search.toLowerCase()) };
   }
-  return AttendeeModel.find(filter).sort({ fullName: 1 }).lean();
+  return AttendeeModel.find(filter).sort({ _id: 1 }).lean();
 }
 
 export async function markPrinted(attendeeId: string) {

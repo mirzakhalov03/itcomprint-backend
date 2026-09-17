@@ -20,9 +20,28 @@ export async function getOne(req: Request, res: Response) {
   res.json(event);
 }
 
-export async function setTemplate(req: Request, res: Response) {
-  const event = await eventService.updateEventTemplate(String(req.params.id), req.body.templateId);
+export async function update(req: Request, res: Response) {
+  const event = await eventService.updateEvent(String(req.params.id), req.body);
   res.json(event);
+}
+
+export async function trash(req: Request, res: Response) {
+  const event = await eventService.trashEvent(String(req.params.id));
+  res.json(event);
+}
+
+export async function restore(req: Request, res: Response) {
+  const event = await eventService.restoreEvent(String(req.params.id));
+  res.json(event);
+}
+
+export async function permanentDelete(req: Request, res: Response) {
+  await eventService.permanentlyDeleteEvent(String(req.params.id));
+  res.json({ ok: true });
+}
+
+export async function listTrash(_req: Request, res: Response) {
+  res.json(await eventService.listTrash());
 }
 
 export async function createFromSheet(req: Request, res: Response) {

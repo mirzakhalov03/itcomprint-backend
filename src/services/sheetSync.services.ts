@@ -22,9 +22,14 @@ export interface MappedRow {
   extra: Record<string, string>;
 }
 
+// Template sheets ship a locked instructions row right under the header
+// (both cells literally read "do not change") — never real attendee data.
+const SENTINEL_VALUE = 'do not change';
+
 /**
  * Maps raw Sheets API rows (first row = header) into attendee shape.
- * A row missing registrantId or fullName is skipped, not fatal.
+ * A row missing registrantId or fullName, or matching the template's
+ * "do not change" instructions row, is skipped, not fatal.
  */
 export function mapSheetRows(rows: string[][]): { mapped: MappedRow[]; skipped: number } {
   if (rows.length === 0) return { mapped: [], skipped: 0 };
@@ -40,6 +45,13 @@ export function mapSheetRows(rows: string[][]): { mapped: MappedRow[]; skipped: 
   for (const row of dataRows) {
     const registrantId = (row[regIdx] ?? '').trim();
     const fullName = (row[nameIdx] ?? '').trim();
+    if (
+      registrantId.toLowerCase() === SENTINEL_VALUE ||
+      fullName.toLowerCase() === SENTINEL_VALUE
+    ) {
+      skipped++;
+      continue;
+    }
     if (!registrantId || !fullName) {
       skipped++;
       continue;

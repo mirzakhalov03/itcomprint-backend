@@ -454,6 +454,140 @@ async function main() {
     }).then((r) => r.json());
     check('PATCH /events/:id templateId null → null', setNull.templateId === null, setNull);
 
+    // --- EVENT EDIT / TRASH / RESTORE / PERMANENT DELETE ---
+    const { EventModel: TrashEventModel } = await import('../src/models/event.model');
+    const { AttendeeModel: TrashAttendeeModel } = await import('../src/models/attendee.model');
+
+    // rename + reschedule via the broadened PATCH
+    const renamed = await afetch(`/events/${eventId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Roadshow June (Updated)', date: '2026-06-21' }),
+    }).then((r) => r.json());
+    check(
+      'PATCH /events/:id → name + date updated',
+      renamed.name === 'Roadshow June (Updated)' &&
+        new Date(renamed.date).toISOString().startsWith('2026-06-21'),
+      renamed,
+    );
+
+    // empty patch body → 400 (schema requires at least one field)
+    const emptyPatch = await afetch(`/events/${eventId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    check('PATCH /events/:id empty body → 400', emptyPatch.status === 400, emptyPatch.status);
+
+    // create a disposable event to soft/hard-delete without disturbing eventId
+    const trashCreateRes = await afetch('/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Trash Me',
+        date: '2026-07-01',
+        attendees: [{ fullName: 'Doomed Attendee', extra: {} }],
+      }),
+    });
+    const trashEvent = await trashCreateRes.json();
+    const trashEventId = trashEvent._id;
+
+    // soft delete (DELETE /:id → trash)
+    const softDel = await afetch(`/events/${trashEventId}`, { method: 'DELETE' });
+    check('DELETE /events/:id → 200 (soft delete)', softDel.status === 200, softDel.status);
+
+    const eventsAfterTrash = await afetch('/events').then((r) => r.json());
+    check(
+      'GET /events excludes trashed event',
+      !eventsAfterTrash.some((e: { _id: string }) => e._id === trashEventId),
+      eventsAfterTrash,
+    );
+
+    const getTrashed = await afetch(`/events/${trashEventId}`);
+    check('GET /events/:id on trashed event → 404', getTrashed.status === 404, getTrashed.status);
+
+    const trashList = await afetch('/events/trash').then((r) => r.json());
+    check(
+      'GET /events/trash includes it',
+      trashList.some((e: { _id: string }) => e._id === trashEventId),
+      trashList,
+    );
+
+    // restore
+    const restoreRes = await afetch(`/events/${trashEventId}/restore`, { method: 'POST' });
+    const restored = await restoreRes.json();
+    check(
+      'POST /events/:id/restore → 200, deletedAt cleared',
+      restoreRes.status === 200 && restored.deletedAt === null,
+      restored,
+    );
+
+    const eventsAfterRestore = await afetch('/events').then((r) => r.json());
+    check(
+      'GET /events includes restored event',
+      eventsAfterRestore.some((e: { _id: string }) => e._id === trashEventId),
+      eventsAfterRestore,
+    );
+
+    // restoring a non-trashed event → 404
+    const restoreNotTrashed = await afetch(`/events/${trashEventId}/restore`, { method: 'POST' });
+    check(
+      'POST /events/:id/restore on a non-trashed event → 404',
+      restoreNotTrashed.status === 404,
+      restoreNotTrashed.status,
+    );
+
+    // permanent delete requires the event to be trashed first
+    const permBeforeTrash = await afetch(`/events/${trashEventId}/permanent`, { method: 'DELETE' });
+    check(
+      'DELETE /events/:id/permanent on a non-trashed event → 404',
+      permBeforeTrash.status === 404,
+      permBeforeTrash.status,
+    );
+
+    await afetch(`/events/${trashEventId}`, { method: 'DELETE' }); // trash it again
+    const permDel = await afetch(`/events/${trashEventId}/permanent`, { method: 'DELETE' });
+    check('DELETE /events/:id/permanent → 200', permDel.status === 200, permDel.status);
+
+    const attendeesAfterPermDelete = await TrashAttendeeModel.find({
+      eventId: trashEventId,
+    }).lean();
+    check(
+      'permanent delete cascades to attendees',
+      attendeesAfterPermDelete.length === 0,
+      attendeesAfterPermDelete,
+    );
+
+    const trashListAfterPerm = await afetch('/events/trash').then((r) => r.json());
+    check(
+      'GET /events/trash no longer includes permanently deleted event',
+      !trashListAfterPerm.some((e: { _id: string }) => e._id === trashEventId),
+      trashListAfterPerm,
+    );
+
+    // lazy purge: an event trashed 46 days ago is hard-deleted the next time trash is listed
+    const expiredCreateRes = await afetch('/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Long Gone',
+        date: '2026-01-01',
+        attendees: [{ fullName: 'Old Attendee', extra: {} }],
+      }),
+    });
+    const expiredEvent = await expiredCreateRes.json();
+    const fortySixDaysAgo = new Date(Date.now() - 46 * 24 * 60 * 60 * 1000);
+    await TrashEventModel.findByIdAndUpdate(expiredEvent._id, { deletedAt: fortySixDaysAgo });
+
+    const trashListAfterExpiry = await afetch('/events/trash').then((r) => r.json());
+    check(
+      'GET /events/trash lazily purges items past 45 days',
+      !trashListAfterExpiry.some((e: { _id: string }) => e._id === expiredEvent._id),
+      trashListAfterExpiry,
+    );
+    const expiredAttendees = await TrashAttendeeModel.find({ eventId: expiredEvent._id }).lean();
+    check('lazy purge cascades to attendees', expiredAttendees.length === 0, expiredAttendees);
+
     // --- SHEET-LINKED EVENTS: creation + on-demand sync over HTTP ---
     __setTestSheetRows('fixture-sheet-3', [
       ['Reg. Number', 'First Name', 'Last Name', 'Occupation', 'Full Name'],

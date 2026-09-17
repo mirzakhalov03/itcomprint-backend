@@ -1,9 +1,15 @@
 import { EventModel } from '../models/event.model';
 import { AttendeeModel } from '../models/attendee.model';
 import { BadgeTemplateModel } from '../models/badgeTemplate.model';
-import { CreateEventInput, CreateEventFromSheetInput } from '../validators/event.validators';
+import {
+  CreateEventInput,
+  CreateEventFromSheetInput,
+  UpdateEventInput,
+} from '../validators/event.validators';
 import { AppError } from '../utils/AppError';
 import { extractSheetId, syncEventAttendees } from './sheetSync.services';
+
+const TRASH_RETENTION_DAYS = 45;
 
 export function buildSearchText(fullName: string, extra: Record<string, string>): string {
   return [fullName, ...Object.values(extra)].join(' ').toLowerCase();
@@ -32,8 +38,7 @@ export async function createEventWithAttendees(
   return { ...event.toObject(), attendeeCount: docs.length };
 }
 
-export async function listEvents() {
-  const events = await EventModel.find().sort({ date: -1 }).lean();
+async function withAttendeeCounts<T extends { _id: unknown }>(events: T[]) {
   const counts = await AttendeeModel.aggregate<{ _id: unknown; count: number; printed: number }>([
     {
       $group: {
@@ -50,8 +55,13 @@ export async function listEvents() {
   });
 }
 
+export async function listEvents() {
+  const events = await EventModel.find({ deletedAt: null }).sort({ date: -1 }).lean();
+  return withAttendeeCounts(events);
+}
+
 export async function getEvent(id: string) {
-  const event = await EventModel.findById(id).lean();
+  const event = await EventModel.findOne({ _id: id, deletedAt: null }).lean();
   if (!event) throw new AppError(404, 'Event not found');
   return event;
 }
@@ -87,16 +97,62 @@ export async function syncEventSheet(eventId: string) {
   return syncEventAttendees(eventId);
 }
 
-export async function updateEventTemplate(eventId: string, templateId: string | null) {
-  if (templateId) {
-    const exists = await BadgeTemplateModel.exists({ _id: templateId });
+export async function updateEvent(eventId: string, input: UpdateEventInput) {
+  if (input.templateId) {
+    const exists = await BadgeTemplateModel.exists({ _id: input.templateId });
     if (!exists) throw new AppError(404, 'Template not found');
   }
-  const event = await EventModel.findByIdAndUpdate(
-    eventId,
-    { $set: { templateId } },
+  const update: Record<string, unknown> = {};
+  if (input.name !== undefined) update.name = input.name;
+  if (input.date !== undefined) update.date = new Date(input.date);
+  if (input.templateId !== undefined) update.templateId = input.templateId;
+
+  const event = await EventModel.findOneAndUpdate(
+    { _id: eventId, deletedAt: null },
+    { $set: update },
     { returnDocument: 'after' },
   ).lean();
   if (!event) throw new AppError(404, 'Event not found');
   return event;
+}
+
+export async function trashEvent(eventId: string) {
+  const event = await EventModel.findOneAndUpdate(
+    { _id: eventId, deletedAt: null },
+    { $set: { deletedAt: new Date() } },
+    { returnDocument: 'after' },
+  ).lean();
+  if (!event) throw new AppError(404, 'Event not found');
+  return event;
+}
+
+export async function restoreEvent(eventId: string) {
+  const event = await EventModel.findOneAndUpdate(
+    { _id: eventId, deletedAt: { $ne: null } },
+    { $set: { deletedAt: null } },
+    { returnDocument: 'after' },
+  ).lean();
+  if (!event) throw new AppError(404, 'Trashed event not found');
+  return event;
+}
+
+export async function permanentlyDeleteEvent(eventId: string) {
+  const event = await EventModel.findOneAndDelete({ _id: eventId, deletedAt: { $ne: null } });
+  if (!event) throw new AppError(404, 'Trashed event not found');
+  await AttendeeModel.deleteMany({ eventId });
+}
+
+export async function listTrash() {
+  const cutoff = new Date(Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  const expired = await EventModel.find({ deletedAt: { $lte: cutoff } }, { _id: 1 }).lean();
+  if (expired.length > 0) {
+    const expiredIds = expired.map((e) => e._id);
+    await AttendeeModel.deleteMany({ eventId: { $in: expiredIds } });
+    await EventModel.deleteMany({ _id: { $in: expiredIds } });
+  }
+
+  const events = await EventModel.find({ deletedAt: { $ne: null } })
+    .sort({ deletedAt: -1 })
+    .lean();
+  return withAttendeeCounts(events);
 }
