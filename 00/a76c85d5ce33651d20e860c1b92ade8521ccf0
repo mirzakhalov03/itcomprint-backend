@@ -1,0 +1,27 @@
+scripts/verify.ts
+  s_3cefd66fc5a79d::t_b68d51cbe55157 309,312,320,323,328-347
+src/config/db.ts
+  s_3cefd66fc5a79d::t_5c7876b9c9b267 15-18
+src/models/event.model.ts
+  s_3cefd66fc5a79d::t_b8cb3a4038b0f6 21
+src/services/event.services.ts
+  s_3cefd66fc5a79d::t_86d778f02b576f 36-40,95-99
+src/services/template.services.ts
+  s_3cefd66fc5a79d::t_b08c6098ae6b6e 22-32,34-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "00a76c85d5ce33651d20e860c1b92ade8521ccf0",
+  "prompts": {},
+  "sessions": {
+    "s_3cefd66fc5a79d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_3cefd66fc5a79d",
+        "model": "unknown"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
