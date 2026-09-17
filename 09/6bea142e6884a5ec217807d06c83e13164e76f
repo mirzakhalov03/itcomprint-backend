@@ -1,0 +1,19 @@
+scripts/verify.ts
+  s_aa39679ef41a25::t_6cb54d47869a38 457-590
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "096bea142e6884a5ec217807d06c83e13164e76f",
+  "prompts": {},
+  "sessions": {
+    "s_aa39679ef41a25": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d3525a62-49b1-4842-b8d9-a4efc5d79a62",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
