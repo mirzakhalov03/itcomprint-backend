@@ -12,7 +12,7 @@ export const createEventSchema = z.object({
       }),
     )
     .min(1, 'At least one attendee is required')
-    .max(50_000, 'Too many attendees in a single import'),
+    .max(20_000, 'Too many attendees — split the spreadsheet into smaller imports'),
 });
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;

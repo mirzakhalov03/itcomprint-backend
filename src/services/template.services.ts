@@ -17,20 +17,24 @@ const DEFAULT_ZONES: Zone[] = [
   },
 ];
 
-export async function ensureDefaultTemplate() {
-  const existing = await BadgeTemplateModel.findOne({ isDefault: true });
-  if (existing) return existing;
-  return BadgeTemplateModel.create({
-    name: 'Default badge',
-    isDefault: true,
-    labelWidthMm: 80,
-    labelHeightMm: 60,
-    zones: DEFAULT_ZONES,
-  });
+// Idempotent upsert. Called once at boot (server.ts), not on every request.
+export async function ensureDefaultTemplate(): Promise<void> {
+  await BadgeTemplateModel.updateOne(
+    { isDefault: true },
+    {
+      $setOnInsert: {
+        name: 'Default badge',
+        isDefault: true,
+        labelWidthMm: 80,
+        labelHeightMm: 60,
+        zones: DEFAULT_ZONES,
+      },
+    },
+    { upsert: true },
+  );
 }
 
 export async function listTemplates() {
-  await ensureDefaultTemplate();
   return BadgeTemplateModel.find().sort({ isDefault: -1, createdAt: 1 }).lean();
 }
 
@@ -40,10 +44,16 @@ export async function getTemplate(id: string) {
   return template;
 }
 
-// Distinct attendee `extra` keys across all events — suggestions for the
-// template field picker. extra is a Mixed map, so unwind its key/value pairs.
+const FIELD_KEY_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000;
+
+// Distinct extra keys from recently created, non-trashed events: bounded cost as history grows.
 export async function listFieldKeys(): Promise<string[]> {
+  const since = new Date(Date.now() - FIELD_KEY_LOOKBACK_MS);
+  const eventIds = await EventModel.find({ deletedAt: null, createdAt: { $gte: since } }).distinct(
+    '_id',
+  );
   const rows = await AttendeeModel.aggregate<{ _id: string }>([
+    { $match: { eventId: { $in: eventIds } } },
     { $project: { kv: { $objectToArray: '$extra' } } },
     { $unwind: '$kv' },
     { $group: { _id: '$kv.k' } },

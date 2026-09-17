@@ -46,10 +46,16 @@ const badgeTemplateSchema = new Schema<BadgeTemplateDoc>(
     labelWidthMm: { type: Number, default: 80 },
     labelHeightMm: { type: Number, default: 60 },
     zones: { type: [zoneSchema], default: [] },
-    isDefault: { type: Boolean, default: false, index: true },
+    isDefault: { type: Boolean, default: false },
     createdByName: { type: String, default: '' },
   },
   { timestamps: true },
+);
+
+// At most one default template, even if two boots race the seed.
+badgeTemplateSchema.index(
+  { isDefault: 1 },
+  { unique: true, partialFilterExpression: { isDefault: true }, name: 'one_default_template' },
 );
 
 export const BadgeTemplateModel = model<BadgeTemplateDoc>('BadgeTemplate', badgeTemplateSchema);

@@ -12,7 +12,7 @@ export interface UserDoc extends Document {
 }
 
 const userSchema = new Schema<UserDoc>({
-  googleId: { type: String, required: true, unique: true, index: true },
+  googleId: { type: String, required: true, unique: true },
   email: { type: String, required: true },
   displayName: { type: String, required: true, trim: true },
   googleName: { type: String, default: '' },

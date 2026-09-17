@@ -18,7 +18,7 @@ export async function me(req: Request, res: Response) {
 export async function updateMe(req: Request, res: Response) {
   const { displayName } = req.body as { displayName: string };
   const user = await authService.updateDisplayName(String(req.user!._id), displayName);
-  res.json({ user: authService.toPublicUser(user!) });
+  res.json({ user: authService.toPublicUser(user) });
 }
 
 export async function logout(_req: Request, res: Response) {

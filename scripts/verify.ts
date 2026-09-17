@@ -87,6 +87,9 @@ async function main() {
   );
 
   await connectDb();
+  const { ensureDefaultTemplate } = await import('../src/services/template.services');
+  await ensureDefaultTemplate(); // server.ts seeds at boot; the harness mirrors it
+  await ensureDefaultTemplate(); // idempotent: a second call must not create a duplicate
   const app = createApp();
   const server = app.listen(4055);
   const base = 'http://localhost:4055/api';
@@ -110,6 +113,15 @@ async function main() {
     // health (public)
     const health = await fetch(`${base}/health`).then((r) => r.json());
     check('GET /health → {ok:true}', health.ok === true, health);
+
+    const badOrigin = await fetch(`${base}/health`, {
+      headers: { Origin: 'https://evil.example' },
+    });
+    check(
+      'request from a disallowed CORS origin → 403',
+      badOrigin.status === 403,
+      badOrigin.status,
+    );
 
     // --- AUTH ---
     // guarded route without a session → 401

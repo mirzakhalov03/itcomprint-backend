@@ -8,6 +8,7 @@ import { corsOrigins, isProd, isTest } from './config/env';
 import { apiRouter } from './routes';
 import { notFound } from './middlewares/notFound.middleware';
 import { errorHandler } from './middlewares/error.middleware';
+import { AppError } from './utils/AppError';
 
 export function createApp() {
   const app = express();
@@ -26,13 +27,13 @@ export function createApp() {
       origin(origin, callback) {
         // Allow non-browser clients (no Origin header) and any configured origin.
         if (!origin || corsOrigins.includes(origin)) return callback(null, true);
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
+        callback(new AppError(403, `Origin ${origin} not allowed`));
       },
     }),
   );
   app.use(cookieParser());
 
-  app.use(express.json({ limit: '5mb' })); // imports can be large
+  app.use(express.json({ limit: '10mb' })); // large spreadsheet imports
 
   app.use('/api', apiRouter);
 

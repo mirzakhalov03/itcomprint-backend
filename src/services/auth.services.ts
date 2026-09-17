@@ -72,9 +72,9 @@ export async function getUserById(id: string): Promise<UserDoc | null> {
   return UserModel.findById(id);
 }
 
-export async function updateDisplayName(id: string, displayName: string): Promise<UserDoc | null> {
+export async function updateDisplayName(id: string, displayName: string): Promise<UserDoc> {
   const user = await UserModel.findById(id);
-  if (!user) return null;
+  if (!user) throw new AppError(404, 'User not found');
   user.displayName = displayName;
   if (!user.onboardedAt) user.onboardedAt = new Date();
   await user.save();

@@ -3,9 +3,11 @@ import { createApp } from './app';
 import { connectDb, disconnectDb } from './config/db';
 import { env } from './config/env';
 import { purgeExpiredTrash } from './services/event.services';
+import { ensureDefaultTemplate } from './services/template.services';
 
 async function main() {
   await connectDb();
+  await ensureDefaultTemplate();
   const app = createApp();
   const server = app.listen(env.PORT, () => console.log(`[server] listening on :${env.PORT}`));
 
