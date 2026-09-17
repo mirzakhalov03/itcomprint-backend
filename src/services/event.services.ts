@@ -33,7 +33,11 @@ export async function createEventWithAttendees(input: CreateEventInput, author: 
   try {
     await AttendeeModel.insertMany(docs);
   } catch (err) {
-    await deleteEventCascade(String(event._id));
+    try {
+      await deleteEventCascade(String(event._id));
+    } catch (cascadeErr) {
+      console.error('[events] rollback failed after creation error', cascadeErr);
+    }
     throw err;
   }
 
@@ -88,7 +92,11 @@ export async function createEventFromSheet(input: CreateEventFromSheetInput, aut
     const result = await syncEventAttendees(String(event._id));
     return { ...event.toObject(), attendeeCount: result.total - result.skipped, ...result };
   } catch (err) {
-    await deleteEventCascade(String(event._id));
+    try {
+      await deleteEventCascade(String(event._id));
+    } catch (cascadeErr) {
+      console.error('[events] rollback failed after creation error', cascadeErr);
+    }
     throw err;
   }
 }

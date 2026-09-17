@@ -306,10 +306,10 @@ async function main() {
     check('POST print unknown attendee → 404', printMissing.status === 404, printMissing.status);
 
     // --- BADGE TEMPLATES ---
-    // GET seeds and returns the default
+    // Seeding happens once at boot (ensureDefaultTemplate above); these just read it back.
     const templates = await afetch('/templates').then((r) => r.json());
     check(
-      'GET /templates → seeds a default',
+      'GET /templates → returns the boot-seeded default',
       Array.isArray(templates) &&
         templates.length >= 1 &&
         templates.some((t: { isDefault: boolean }) => t.isDefault),
@@ -317,12 +317,32 @@ async function main() {
     );
     const defaultTemplate = templates.find((t: { isDefault: boolean }) => t.isDefault);
 
-    // GET /templates again → still exactly one default (idempotent seed)
+    // GET /templates again → same default both times (no duplicate)
     const templates2 = await afetch('/templates').then((r) => r.json());
     check(
-      'GET /templates twice → exactly one default',
+      'GET /templates twice → same default both times (no duplicate)',
       templates2.filter((t: { isDefault: boolean }) => t.isDefault).length === 1,
       templates2,
+    );
+
+    // one_default_template partial unique index rejects a second isDefault:true doc
+    const { BadgeTemplateModel } = await import('../src/models/badgeTemplate.model');
+    let secondDefaultErr: { code?: number } | undefined;
+    try {
+      await BadgeTemplateModel.create({
+        name: 'Rogue default',
+        labelWidthMm: 80,
+        labelHeightMm: 60,
+        zones: [],
+        isDefault: true,
+      });
+    } catch (err) {
+      secondDefaultErr = err as { code?: number };
+    }
+    check(
+      'one_default_template index → rejects a second isDefault:true template',
+      secondDefaultErr?.code === 11000,
+      secondDefaultErr,
     );
 
     // GET one

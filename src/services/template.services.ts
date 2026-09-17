@@ -19,19 +19,30 @@ const DEFAULT_ZONES: Zone[] = [
 
 // Idempotent upsert. Called once at boot (server.ts), not on every request.
 export async function ensureDefaultTemplate(): Promise<void> {
-  await BadgeTemplateModel.updateOne(
-    { isDefault: true },
-    {
-      $setOnInsert: {
-        name: 'Default badge',
-        isDefault: true,
-        labelWidthMm: 80,
-        labelHeightMm: 60,
-        zones: DEFAULT_ZONES,
+  try {
+    await BadgeTemplateModel.updateOne(
+      { isDefault: true },
+      {
+        $setOnInsert: {
+          name: 'Default badge',
+          isDefault: true,
+          labelWidthMm: 80,
+          labelHeightMm: 60,
+          zones: DEFAULT_ZONES,
+        },
       },
-    },
-    { upsert: true },
-  );
+      { upsert: true },
+    );
+  } catch (err) {
+    // Two instances racing to seed on cold boot both upsert; the loser hits the
+    // partial unique index (one_default_template) — harmless, the winner already did the job.
+    const isDuplicateKey =
+      (err as { code?: number }).code === 11000 ||
+      ((err as { name?: string }).name === 'MongoServerError' &&
+        (err as { code?: number }).code === 11000);
+    if (!isDuplicateKey) throw err;
+    console.log('[templates] default already seeded by another instance');
+  }
 }
 
 export async function listTemplates() {

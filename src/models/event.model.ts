@@ -18,8 +18,7 @@ const eventSchema = new Schema<EventDoc>({
   name: { type: String, required: true, trim: true },
   date: { type: Date, required: true },
   // Author identity is denormalized onto the event so the dashboard lists
-  // events without a join (same reasoning as Attendee.searchText). A user
-  // renaming themselves does not rewrite past events.
+  // events without a join. A user renaming themselves does not rewrite past events.
   authorId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   authorName: { type: String, default: '' },
   authorPicture: { type: String, default: '' },
