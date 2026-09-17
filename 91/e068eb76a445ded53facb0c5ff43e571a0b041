@@ -1,0 +1,35 @@
+scripts/verify.ts
+  s_d8b340aaf2a2c4::t_60cffac62160ee 90-92,117-125
+src/app.ts
+  s_d8b340aaf2a2c4::t_15710714190b76 11,30,36
+src/controllers/auth.controllers.ts
+  s_d8b340aaf2a2c4::t_51fa52deb34aae 21
+src/models/badgeTemplate.model.ts
+  s_d8b340aaf2a2c4::t_2f45a0a892d7dc 49,55-60
+src/models/user.model.ts
+  s_d8b340aaf2a2c4::t_036b0c0a43882f 15
+src/server.ts
+  s_d8b340aaf2a2c4::t_647756e11309d2 6,10
+src/services/auth.services.ts
+  s_d8b340aaf2a2c4::t_c664058b45b720 75,77
+src/services/template.services.ts
+  s_d8b340aaf2a2c4::t_492cd35ee2b478 20-34,47-49,51-54,56
+src/validators/event.validators.ts
+  s_d8b340aaf2a2c4::t_7846217de95a18 15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "91e068eb76a445ded53facb0c5ff43e571a0b041",
+  "prompts": {},
+  "sessions": {
+    "s_d8b340aaf2a2c4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "20e219b2-b075-4e5b-82ed-cc8c57230efd",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
