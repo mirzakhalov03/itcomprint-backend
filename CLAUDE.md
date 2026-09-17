@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-The API for **Roadshow Badge Printing** — an internal kiosk tool for IT Community of Uzbekistan events. Express 5 + Mongoose 9 + Zod 4 on Node/TypeScript (ESM, `module: NodeNext`). The frontend (`../frontend`) does spreadsheet parsing and printing client-side; this backend only persists events/attendees and tracks print status. See `../CLAUDE.md` for the whole-project picture.
+The API for **Roadshow Badge Printing** — an internal kiosk tool for IT Community of Uzbekistan events. Express 5 + Mongoose 9 + Zod 4 on Node/TypeScript (CommonJS output (no "type": "module"), module: NodeNext). The frontend (`../frontend`) does spreadsheet parsing and printing client-side; this backend only persists events/attendees and tracks print status. See `../CLAUDE.md` for the whole-project picture.
 
 ## Commands
 
@@ -29,7 +29,7 @@ All routes are mounted under `/api` (`app.ts`):
 | POST   | `/events`               | create an event **with its attendees** in one shot (requires session; stamps author) |
 | GET    | `/events`               | list events, each with `attendeeCount` (requires session)                            |
 | GET    | `/events/:id`           | one event (requires session)                                                         |
-| GET    | `/events/:id/attendees` | list attendees; `?search=` & `?status=printed\|not_printed` (requires session)       |
+| GET    | `/events/:id/attendees` | list attendees (requires session)                                                    |
 | POST   | `/attendees/:id/print`  | mark printed — also the reprint endpoint (requires session)                          |
 
 `/events` and `/attendees` are guarded by `requireAuth` (`middlewares/requireAuth.middleware.ts`), which reads the `session` httpOnly cookie, verifies the JWT, and attaches `req.user`. Auth routes are public.
@@ -52,13 +52,14 @@ Strict MVC: **`routes → controllers → services → models`**, plus `validato
 Two collections (`models/`):
 
 - **Event**: `name`, `date`, `createdAt`. `attendeeCount` is _not_ stored — `listEvents` derives it via an `$group` aggregation over attendees.
-- **Attendee**: `eventId`, `fullName`, `extra` (free-form `Record<string,string>` from spreadsheet columns), `searchText`, `printStatus`, `printCount`, `lastPrintedAt`.
+- **Attendee**: `eventId`, `fullName`, `extra` (free-form `Record<string,string>` from spreadsheet columns), `printStatus`, `printCount`, `lastPrintedAt`.
 
 Domain rules baked into the services:
 
 - **Events are created with their attendees** (`createEventWithAttendees` → `insertMany`). There is intentionally no per-attendee create/update/delete endpoint.
-- **`searchText` is denormalized at write time**: `fullName + all extra values`, lowercased (`buildSearchText`). Live search regex-matches this single field (compound index `{ eventId: 1, searchText: 1 }`), so a query hits company/role/etc., not just the name. Search input is regex-escaped and lowercased before matching. **If you change what's searchable, update `buildSearchText` — existing docs won't re-index themselves.**
 - **Print and reprint are one endpoint**: `markPrinted` does `$inc: { printCount: 1 }` + sets `printStatus: 'printed'` and `lastPrintedAt`. The frontend renders "Print" vs "Reprint" off `printStatus`.
+- **Trash**: `purgeExpiredTrash()` runs hourly from `server.ts`; `GET /events/trash` hides expired items and returns `purgeAt`.
+- **`POST /events/:id/sync-sheet` returns `lastSyncedAt`.**
 
 ## Deployment (Railway)
 
