@@ -10,6 +10,7 @@ export interface AttendeeDoc extends Document {
   printCount: number;
   lastPrintedAt: Date | null;
   registrantId: string | null;
+  removedAt: Date | null;
 }
 
 const attendeeSchema = new Schema<AttendeeDoc>({
@@ -20,6 +21,8 @@ const attendeeSchema = new Schema<AttendeeDoc>({
   printCount: { type: Number, default: 0 },
   lastPrintedAt: { type: Date, default: null },
   registrantId: String,
+  // Set when the row leaves the linked sheet; soft so print history survives an accidental delete.
+  removedAt: { type: Date, default: null },
 });
 
 // sparse: XLSX-imported attendees have no registrantId and must not collide

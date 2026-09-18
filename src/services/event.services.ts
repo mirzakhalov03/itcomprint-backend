@@ -47,7 +47,7 @@ export async function createEventWithAttendees(input: CreateEventInput, author: 
 async function withAttendeeCounts<T extends { _id: unknown }>(events: T[]) {
   const counts = await AttendeeModel.aggregate<{ _id: unknown; count: number; printed: number }>([
     // Scope to the listed events so cost tracks the screen, not total history.
-    { $match: { eventId: { $in: events.map((e) => e._id) } } },
+    { $match: { eventId: { $in: events.map((e) => e._id) }, removedAt: null } },
     {
       $group: {
         _id: '$eventId',

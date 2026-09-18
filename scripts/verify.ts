@@ -68,6 +68,31 @@ async function main() {
     mapResult.mapped[1],
   );
 
+  const issueResult = mapSheetRows([
+    ['Reg. Number', 'Full Name'],
+    ['R1', 'Jane Doe'],
+    ['77777', ' '], // ID typed, name missing → reported
+    ['', 'No Id'], // name without ID → reported
+    ['R1', 'Jane Copy'], // repeated ID → reported, first row wins
+    ['manual-001', ''], // empty walk-in slot → silent
+    ['', ''], // blank row → silent
+  ]);
+  check(
+    'mapSheetRows reports half-filled rows and duplicates with sheet row numbers',
+    JSON.stringify(issueResult.issues.map((i) => [i.row, i.reason])) ===
+      JSON.stringify([
+        [3, 'missing_name'],
+        [4, 'missing_id'],
+        [5, 'duplicate_id'],
+      ]),
+    issueResult.issues,
+  );
+  check(
+    'mapSheetRows keeps the first of duplicate IDs',
+    issueResult.mapped.length === 1 && issueResult.mapped[0].fullName === 'Jane Doe',
+    issueResult.mapped,
+  );
+
   const { fetchSheetRows, __setTestSheetRows } = await import('../src/services/sheetSync.services');
 
   check(
@@ -297,6 +322,32 @@ async function main() {
       'GET /events after print → printedCount=1',
       eventsAfterPrint[0]?.printedCount === 1,
       eventsAfterPrint,
+    );
+
+    // unprint → back to never-printed, and the event stats drop it
+    const unprinted = await afetch(`/attendees/${janeId}/print`, { method: 'DELETE' }).then((r) =>
+      r.json(),
+    );
+    check(
+      'DELETE print → not_printed, count=0, lastPrintedAt=null',
+      unprinted.printStatus === 'not_printed' &&
+        unprinted.printCount === 0 &&
+        unprinted.lastPrintedAt === null,
+      unprinted,
+    );
+    const eventsAfterUnprint = await afetch('/events').then((r) => r.json());
+    check(
+      'GET /events after unprint → printedCount=0',
+      eventsAfterUnprint[0]?.printedCount === 0,
+      eventsAfterUnprint,
+    );
+    const unprintMissing = await afetch('/attendees/0123456789abcdef01234567/print', {
+      method: 'DELETE',
+    });
+    check(
+      'DELETE print unknown attendee → 404',
+      unprintMissing.status === 404,
+      unprintMissing.status,
     );
 
     // print unknown attendee → 404
@@ -670,6 +721,7 @@ async function main() {
     const { syncEventAttendees } = await import('../src/services/sheetSync.services');
     const { EventModel: SyncEventModel } = await import('../src/models/event.model');
     const { AttendeeModel: SyncAttendeeModel } = await import('../src/models/attendee.model');
+    const { listAttendees } = await import('../src/services/attendee.services');
 
     const syncEvent = await SyncEventModel.create({
       name: 'Sync Test Event',
@@ -726,6 +778,35 @@ async function main() {
       attendeesAfterSync.find((a) => a.registrantId === 'R1')?.extra.Occupation ===
         'Senior Engineer',
       attendeesAfterSync.find((a) => a.registrantId === 'R1'),
+    );
+
+    __setTestSheetRows('fixture-sheet-2', [
+      ['Reg. Number', 'First Name', 'Last Name', 'Occupation', 'Full Name'],
+      ['R1', 'Jane', 'Doe', 'Senior Engineer', 'Jane Doe'], // John's row deleted
+    ]);
+    const removalSync = await syncEventAttendees(String(syncEvent._id));
+    check('sync → 1 removed when a row leaves the sheet', removalSync.removed === 1, removalSync);
+    const rosterAfterRemoval = await listAttendees(String(syncEvent._id));
+    check(
+      'removed attendee is hidden from the roster but kept in the DB',
+      rosterAfterRemoval.length === 1 &&
+        (await SyncAttendeeModel.countDocuments({ eventId: syncEvent._id })) === 2,
+      rosterAfterRemoval,
+    );
+
+    __setTestSheetRows('fixture-sheet-2', [['Reg. Number', 'Full Name']]);
+    const blankSync = await syncEventAttendees(String(syncEvent._id));
+    check('empty sheet read never removes the roster', blankSync.removed === 0, blankSync);
+
+    __setTestSheetRows('fixture-sheet-2', [
+      ['Reg. Number', 'First Name', 'Last Name', 'Occupation', 'Full Name'],
+      ['R1', 'Jane', 'Doe', 'Senior Engineer', 'Jane Doe'],
+      ['R2', 'John', 'Smith', '', 'John Smith'], // row restored
+    ]);
+    await syncEventAttendees(String(syncEvent._id));
+    check(
+      'restored row brings the attendee back',
+      (await listAttendees(String(syncEvent._id))).length === 2,
     );
 
     // --- LOGOUT ---

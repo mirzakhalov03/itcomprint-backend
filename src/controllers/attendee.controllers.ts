@@ -10,3 +10,8 @@ export async function print(req: Request, res: Response) {
   const attendee = await attendeeService.markPrinted(String(req.params.id));
   res.json(attendee);
 }
+
+export async function unprint(req: Request, res: Response) {
+  const attendee = await attendeeService.markUnprinted(String(req.params.id));
+  res.json(attendee);
+}

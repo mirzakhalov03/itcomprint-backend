@@ -21,49 +21,81 @@ export interface MappedRow {
   extra: Record<string, string>;
 }
 
+export type SheetIssueReason = 'missing_name' | 'missing_id' | 'duplicate_id';
+
+/** A half-filled sheet row the sync couldn't import — surfaced so operators can fix the sheet. */
+export interface SheetIssue {
+  row: number; // 1-based sheet row, as Google Sheets shows it
+  registrantId: string;
+  fullName: string;
+  reason: SheetIssueReason;
+}
+
 // Template sheets ship a locked instructions row right under the header
 // (both cells literally read "do not change") — never real attendee data.
 const SENTINEL_VALUE = 'do not change';
+// Pre-seeded walk-in slots ("manual-001", …) stay nameless until someone fills them in.
+const PLACEHOLDER_ID = /^manual-\d+$/i;
 
 /**
  * Maps raw Sheets API rows (first row = header) into attendee shape.
- * A row missing registrantId or fullName, or matching the template's
- * "do not change" instructions row, is skipped, not fatal.
+ * A row missing registrantId or fullName, a repeated registrantId, or the
+ * template's "do not change" row is skipped, not fatal. Half-filled rows and
+ * duplicates are also reported as issues; blank rows and placeholders are not.
  */
-export function mapSheetRows(rows: string[][]): { mapped: MappedRow[]; skipped: number } {
-  if (rows.length === 0) return { mapped: [], skipped: 0 };
+export function mapSheetRows(rows: string[][]): {
+  mapped: MappedRow[];
+  skipped: number;
+  issues: SheetIssue[];
+} {
+  if (rows.length === 0) return { mapped: [], skipped: 0, issues: [] };
   const [header, ...dataRows] = rows;
   const regIdx = header.indexOf(SHEET_COLUMNS.registrantId);
   const nameIdx = header.indexOf(SHEET_COLUMNS.fullName);
   if (regIdx === -1 || nameIdx === -1) {
-    return { mapped: [], skipped: dataRows.length };
+    return { mapped: [], skipped: dataRows.length, issues: [] };
   }
 
   let skipped = 0;
   const mapped: MappedRow[] = [];
-  for (const row of dataRows) {
+  const issues: SheetIssue[] = [];
+  const seen = new Set<string>();
+  dataRows.forEach((row, i) => {
     const registrantId = (row[regIdx] ?? '').trim();
     const fullName = (row[nameIdx] ?? '').trim();
+    const issue = (reason: SheetIssueReason) =>
+      issues.push({ row: i + 2, registrantId, fullName, reason });
+
     if (
       registrantId.toLowerCase() === SENTINEL_VALUE ||
       fullName.toLowerCase() === SENTINEL_VALUE
     ) {
       skipped++;
-      continue;
+      return;
     }
     if (!registrantId || !fullName) {
       skipped++;
-      continue;
+      if (fullName) issue('missing_id');
+      else if (registrantId && !PLACEHOLDER_ID.test(registrantId)) issue('missing_name');
+      return;
     }
+    // First row wins; a later copy would otherwise silently overwrite it.
+    if (seen.has(registrantId)) {
+      skipped++;
+      issue('duplicate_id');
+      return;
+    }
+    seen.add(registrantId);
+
     const extra: Record<string, string> = {};
-    header.forEach((col, i) => {
-      if (i === regIdx || i === nameIdx) return;
-      const value = (row[i] ?? '').trim();
+    header.forEach((col, j) => {
+      if (j === regIdx || j === nameIdx) return;
+      const value = (row[j] ?? '').trim();
       if (value) extra[col] = value;
     });
     mapped.push({ registrantId, fullName, extra });
-  }
-  return { mapped, skipped };
+  });
+  return { mapped, skipped, issues };
 }
 
 const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
@@ -135,6 +167,7 @@ export async function syncRowsIntoEvent(
             registrantId: row.registrantId,
             fullName: row.fullName,
             extra: row.extra,
+            removedAt: null, // back on the sheet → back on the roster
           },
         },
         upsert: true,
@@ -145,11 +178,26 @@ export async function syncRowsIntoEvent(
   return { added: result.upsertedCount, updated: result.modifiedCount };
 }
 
+/** Soft-removes sheet attendees whose row is gone, keeping their print history. */
+export async function markRemovedAttendees(eventId: string, keepIds: string[]): Promise<number> {
+  const result = await AttendeeModel.updateMany(
+    {
+      eventId: new Types.ObjectId(eventId),
+      registrantId: { $exists: true, $nin: keepIds },
+      removedAt: null,
+    },
+    { $set: { removedAt: new Date() } },
+  );
+  return result.modifiedCount;
+}
+
 export async function syncEventAttendees(eventId: string): Promise<{
   added: number;
   updated: number;
+  removed: number;
   skipped: number;
   total: number;
+  issues: SheetIssue[];
   lastSyncedAt: Date;
 }> {
   const event = await EventModel.findOne({ _id: eventId, deletedAt: null });
@@ -157,8 +205,16 @@ export async function syncEventAttendees(eventId: string): Promise<{
   if (!event.sheetId) throw new AppError(400, 'Event is not linked to a sheet');
 
   const rows = await fetchSheetRows(event.sheetId);
-  const { mapped, skipped } = mapSheetRows(rows);
+  const { mapped, skipped, issues } = mapSheetRows(rows);
   const { added, updated } = await syncRowsIntoEvent(eventId, mapped);
+  // An empty mapping means a renamed header or blank read, never "everyone left" — don't wipe the roster.
+  const removed =
+    mapped.length > 0
+      ? await markRemovedAttendees(
+          eventId,
+          mapped.map((r) => r.registrantId),
+        )
+      : 0;
 
   event.lastSyncedAt = new Date();
   await event.save();
@@ -166,8 +222,10 @@ export async function syncEventAttendees(eventId: string): Promise<{
   return {
     added,
     updated,
+    removed,
     skipped,
     total: mapped.length + skipped,
+    issues,
     lastSyncedAt: event.lastSyncedAt!,
   };
 }

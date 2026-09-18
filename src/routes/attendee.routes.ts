@@ -6,3 +6,4 @@ import { attendeeIdParamSchema } from '../validators/attendee.validators';
 export const attendeeRouter = Router();
 
 attendeeRouter.post('/:id/print', validate(attendeeIdParamSchema, 'params'), controller.print);
+attendeeRouter.delete('/:id/print', validate(attendeeIdParamSchema, 'params'), controller.unprint);
