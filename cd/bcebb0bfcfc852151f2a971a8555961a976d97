@@ -1,0 +1,21 @@
+src/models/badgeTemplate.model.ts
+  s_3cf07652717e87::t_ba26213f08fbe2 15,40
+src/validators/template.validators.ts
+  s_3cf07652717e87::t_17a915a3713f4e 14-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "cdbcebb0bfcfc852151f2a971a8555961a976d97",
+  "prompts": {},
+  "sessions": {
+    "s_3cf07652717e87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cafee09d-196a-479b-8157-36fee843ea21",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
