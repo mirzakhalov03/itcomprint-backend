@@ -12,6 +12,7 @@ export interface Zone {
   bold: boolean;
   align: ZoneAlign;
   hidden: boolean;
+  spaceAboveMm?: number;
 }
 
 export interface BadgeTemplateDoc extends Document {
@@ -36,6 +37,7 @@ const zoneSchema = new Schema<Zone>(
     bold: { type: Boolean, default: false },
     align: { type: String, enum: ['left', 'center', 'right'], default: 'center' },
     hidden: { type: Boolean, default: false },
+    spaceAboveMm: { type: Number, default: 0 },
   },
   { _id: false },
 );

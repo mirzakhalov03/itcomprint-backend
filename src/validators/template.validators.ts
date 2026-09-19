@@ -11,6 +11,8 @@ const zoneSchema = z.object({
   bold: z.boolean(),
   align: z.enum(['left', 'center', 'right']),
   hidden: z.boolean().default(false),
+  // Extra gap before this zone, on top of the default line gap.
+  spaceAboveMm: z.number().min(0).max(20).default(0),
 });
 
 export const createTemplateSchema = z.object({
