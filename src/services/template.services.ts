@@ -94,4 +94,13 @@ export async function deleteTemplate(id: string) {
   // Events pointing at this template fall back to the default (templateId null).
   await EventModel.updateMany({ templateId: id }, { $set: { templateId: null } });
   await template.deleteOne();
+  return template;
+}
+
+// For activity labels: null means the event uses the default template.
+export async function getTemplateName(id: string | null): Promise<string> {
+  const template = await BadgeTemplateModel.findOne(id ? { _id: id } : { isDefault: true })
+    .select('name')
+    .lean();
+  return template?.name ?? '';
 }

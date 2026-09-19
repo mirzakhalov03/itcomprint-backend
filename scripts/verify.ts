@@ -422,13 +422,26 @@ async function main() {
         labelHeightMm: 60,
         zones: [
           { id: 'n', field: 'fullName', fontSize: 14, bold: true, align: 'center', hidden: false },
-          { id: 'r', field: 'role', fontSize: 12, bold: false, align: 'center', hidden: false },
+          {
+            id: 'r',
+            field: 'role',
+            fontSize: 12,
+            bold: false,
+            align: 'center',
+            hidden: false,
+            spaceAboveMm: 3,
+          },
         ],
       }),
     });
     const customTemplate = await createTRes.json();
     check('POST /templates → 201', createTRes.status === 201, createTRes.status);
     check('POST /templates → isDefault false', customTemplate.isDefault === false, customTemplate);
+    check(
+      'POST /templates → spaceAboveMm persisted',
+      customTemplate.zones[1]?.spaceAboveMm === 3,
+      customTemplate.zones,
+    );
 
     // bad template body → 400
     const badTRes = await afetch('/templates', {
@@ -807,6 +820,104 @@ async function main() {
     check(
       'restored row brings the attendee back',
       (await listAttendees(String(syncEvent._id))).length === 2,
+    );
+
+    // --- ACTIVITY LOG ---
+    const json = { 'Content-Type': 'application/json' };
+    const actEvent = await afetch('/events', {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify({
+        name: 'Activity Expo',
+        date: '2026-09-19',
+        attendees: [{ fullName: 'Ada Log' }, { fullName: 'Bob Trail' }],
+      }),
+    }).then((r) => r.json());
+    const [ada] = await afetch(`/events/${actEvent._id}/attendees`).then((r) => r.json());
+    await afetch(`/attendees/${ada._id}/print`, { method: 'POST' });
+    await afetch(`/attendees/${ada._id}/print`, { method: 'POST' });
+    await afetch(`/attendees/${ada._id}/print`, { method: 'DELETE' });
+    await afetch(`/events/${actEvent._id}`, {
+      method: 'PATCH',
+      headers: json,
+      body: JSON.stringify({ name: 'Activity Expo 2' }),
+    });
+    await afetch(`/events/${actEvent._id}`, {
+      method: 'PATCH',
+      headers: json,
+      body: JSON.stringify({ templateId: null }),
+    });
+    const printerLog = await afetch('/activity/printer', {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify({ action: 'connect', eventId: actEvent._id }),
+    });
+    check('POST /activity/printer → 204', printerLog.status === 204, printerLog.status);
+
+    const actFeed = await afetch(`/activity?eventId=${actEvent._id}`).then((r) => r.json());
+    check(
+      'GET /activity?eventId → newest first, every action logged',
+      JSON.stringify(actFeed.items.map((i: { action: string }) => i.action)) ===
+        JSON.stringify([
+          'printer.connect',
+          'event.template',
+          'event.update',
+          'attendee.unprint',
+          'attendee.reprint',
+          'attendee.print',
+          'event.create',
+        ]),
+      actFeed.items.map((i: { action: string }) => i.action),
+    );
+    const firstPrint = actFeed.items.find((i: { action: string }) => i.action === 'attendee.print');
+    const { user: actor } = await afetch('/auth/me').then((r) => r.json());
+    check(
+      'activity snapshots actor, event and target names',
+      firstPrint?.actorName === actor.displayName &&
+        firstPrint?.eventName === 'Activity Expo' &&
+        firstPrint?.targetName === 'Ada Log',
+      firstPrint,
+    );
+    check(
+      'template switch to null is labelled with the default template name',
+      actFeed.items[1]?.targetName === 'Default badge',
+      actFeed.items[1],
+    );
+    check('a single page has no next cursor', actFeed.nextCursor === null, actFeed.nextCursor);
+
+    const page1 = await afetch(`/activity?eventId=${actEvent._id}&limit=4`).then((r) => r.json());
+    const page2 = await afetch(
+      `/activity?eventId=${actEvent._id}&limit=4&before=${page1.nextCursor}`,
+    ).then((r) => r.json());
+    check(
+      'cursor pagination splits the feed without overlap',
+      page1.items.length === 4 &&
+        page2.items.length === 3 &&
+        page2.nextCursor === null &&
+        page2.items[0].action === 'attendee.reprint',
+      { page1: page1.nextCursor, page2 },
+    );
+
+    const badCursor = await afetch('/activity?before=nope');
+    check('GET /activity bad cursor → 400', badCursor.status === 400, badCursor.status);
+    const badPrinter = await afetch('/activity/printer', {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify({ action: 'explode' }),
+    });
+    check('POST /activity/printer bad action → 400', badPrinter.status === 400, badPrinter.status);
+    const actNoAuth = await fetch(`${base}/activity`);
+    check('GET /activity without session → 401', actNoAuth.status === 401, actNoAuth.status);
+
+    await afetch(`/events/${actEvent._id}`, { method: 'DELETE' });
+    await afetch(`/events/${actEvent._id}/permanent`, { method: 'DELETE' });
+    const globalFeed = await afetch('/activity?limit=2').then((r) => r.json());
+    check(
+      'permanent delete is logged with the event name after the event is gone',
+      globalFeed.items[0]?.action === 'event.delete' &&
+        globalFeed.items[0]?.targetName === 'Activity Expo 2' &&
+        globalFeed.items[1]?.action === 'event.trash',
+      globalFeed.items,
     );
 
     // --- LOGOUT ---

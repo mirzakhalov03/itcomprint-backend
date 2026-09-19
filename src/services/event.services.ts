@@ -148,6 +148,7 @@ export async function permanentlyDeleteEvent(eventId: string) {
   const event = await EventModel.findOneAndDelete({ _id: eventId, deletedAt: { $ne: null } });
   if (!event) throw new AppError(404, 'Trashed event not found');
   await AttendeeModel.deleteMany({ eventId });
+  return event;
 }
 
 const TRASH_RETENTION_MS = 45 * 24 * 60 * 60 * 1000;

@@ -4,6 +4,7 @@ import { eventRouter } from './event.routes';
 import { attendeeRouter } from './attendee.routes';
 import { templateRouter } from './template.routes';
 import { authRouter } from './auth.routes';
+import { activityRouter } from './activity.routes';
 import { requireAuth } from '../middlewares/requireAuth.middleware';
 
 export const apiRouter = Router();
@@ -19,3 +20,4 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/events', requireAuth, eventRouter);
 apiRouter.use('/attendees', requireAuth, attendeeRouter);
 apiRouter.use('/templates', requireAuth, templateRouter);
+apiRouter.use('/activity', requireAuth, activityRouter);
