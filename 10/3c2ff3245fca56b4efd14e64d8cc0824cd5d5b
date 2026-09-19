@@ -1,0 +1,49 @@
+scripts/verify.ts
+  s_3cf07652717e87::t_7e9b3c7a48a8fa 425-433,440-444,825-922
+src/controllers/attendee.controllers.ts
+  s_41cfd708786881::t_e49a7d9a957f3a 3-4,13-17,23-27
+src/controllers/template.controllers.ts
+  s_41cfd708786881::t_83d74fdd279798 3-4,21,26-28,32-33
+src/routes/index.ts
+  s_41cfd708786881::t_7f67523ff60b3f 7,23
+src/services/event.services.ts
+  s_41cfd708786881::t_2a7e7a20281c0d 151
+src/services/template.services.ts
+  s_41cfd708786881::t_f2c7620629d77d 97-105
+src/controllers/activity.controllers.ts
+  s_3cf07652717e87::t_0f90a7d2dbe01e 1-14
+src/controllers/event.controllers.ts
+  s_3cf07652717e87::t_be3ce1611da914 2,4-7,10-25,28,42-50,56,62,67-68,78,82
+src/models/activity.model.ts
+  s_3cf07652717e87::t_6e69f7486d53cd 1-50
+src/routes/activity.routes.ts
+  s_3cf07652717e87::t_8f0a260049a4e1 1-12
+src/services/activity.services.ts
+  s_3cf07652717e87::t_21311b0b484293 1-54
+src/validators/activity.validators.ts
+  s_3cf07652717e87::t_49e8de88beffc2 1-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "103c2ff3245fca56b4efd14e64d8cc0824cd5d5b",
+  "prompts": {},
+  "sessions": {
+    "s_3cf07652717e87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cafee09d-196a-479b-8157-36fee843ea21",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    },
+    "s_41cfd708786881": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "60d50b77-b4cd-4262-be5e-dfa9c6d0c342",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
