@@ -1,0 +1,25 @@
+.env.example
+  s_c674d4c2c59867::t_2d8364d0758b37 17-19
+scripts/verify.ts
+  s_c674d4c2c59867::t_6eff9a123a7b7c 34,115-117
+src/config/env.ts
+  s_c674d4c2c59867::t_719ef35af1acbf 14
+src/models/event.model.ts
+  s_c674d4c2c59867::t_11bb4398f08ef9 13,32-33,40-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "a72922cb0ebfff72590542180d37233e8b0e3ca3",
+  "prompts": {},
+  "sessions": {
+    "s_c674d4c2c59867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8aec7056-3ec6-40d3-88c3-aa47502e9838",
+        "model": "unknown"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
