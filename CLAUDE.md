@@ -77,6 +77,7 @@ Domain rules baked into the services:
 - **Print and reprint are one endpoint**: `markPrinted` does `$inc: { printCount: 1 }` + sets `printStatus: 'printed'` and `lastPrintedAt`. The frontend renders "Print" vs "Reprint" off `printStatus`.
 - **Trash**: `purgeExpiredTrash()` runs hourly from `server.ts`; `GET /events/trash` hides expired items and returns `purgeAt`.
 - **`POST /events/:id/sync-sheet` returns `lastSyncedAt`.**
+- **Sheet columns** (`mapSheetRows`): `Reg. Number` is the attendee ID. The name is `Full Name` when that column exists (legacy per-event sheets), else `First Name` + `Last Name` (the Main Sheet: Reg. Number, First Name, Last Name, Username, Phone, Company, Job Title, Birthday, Track). Every other non-empty column goes into `extra`. A header missing the ID or a name column throws 400, surfaced on the kiosk.
 
 ## Deployment (Railway)
 

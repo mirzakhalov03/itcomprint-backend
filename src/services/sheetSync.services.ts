@@ -7,7 +7,9 @@ import { EventModel } from '../models/event.model';
 
 export const SHEET_COLUMNS = {
   registrantId: 'Reg. Number',
-  fullName: 'Full Name',
+  fullName: 'Full Name', // legacy per-event sheets
+  firstName: 'First Name', // Main Sheet: name is First + Last
+  lastName: 'Last Name',
 } as const;
 
 export interface MappedRow {
@@ -32,8 +34,17 @@ const SENTINEL_VALUE = 'do not change';
 // Pre-seeded walk-in slots ("manual-001", …) stay nameless until someone fills them in.
 const PLACEHOLDER_ID = /^manual-\d+$/i;
 
+/** "First Last", unless First Name already carries the surname (a common registration slip). */
+function joinName(first: string, last: string): string {
+  if (!last || first.toLowerCase().includes(last.toLowerCase())) return first;
+  return first ? `${first} ${last}` : last;
+}
+
 /**
  * Maps raw Sheets API rows (first row = header) into attendee shape.
+ * The name comes from a Full Name column when present, else First + Last Name;
+ * every other non-empty column lands in `extra`. A header without the ID or a
+ * name column throws, so a malformed tab surfaces instead of syncing nothing.
  * A row missing registrantId or fullName, a repeated registrantId, or the
  * template's "do not change" row is skipped, not fatal. Half-filled rows and
  * duplicates are also reported as issues; blank rows and placeholders are not.
@@ -44,20 +55,31 @@ export function mapSheetRows(rows: string[][]): {
   issues: SheetIssue[];
 } {
   if (rows.length === 0) return { mapped: [], skipped: 0, issues: [] };
-  const [header, ...dataRows] = rows;
+  const [rawHeader, ...dataRows] = rows;
+  const header = rawHeader.map((col) => col.trim());
   const regIdx = header.indexOf(SHEET_COLUMNS.registrantId);
-  const nameIdx = header.indexOf(SHEET_COLUMNS.fullName);
-  if (regIdx === -1 || nameIdx === -1) {
-    return { mapped: [], skipped: dataRows.length, issues: [] };
+  const fullNameIdx = header.indexOf(SHEET_COLUMNS.fullName);
+  const firstNameIdx = header.indexOf(SHEET_COLUMNS.firstName);
+  const lastNameIdx = header.indexOf(SHEET_COLUMNS.lastName);
+  if (regIdx === -1 || (fullNameIdx === -1 && firstNameIdx === -1)) {
+    throw new AppError(
+      400,
+      `The sheet's header row needs "${SHEET_COLUMNS.registrantId}" and "${SHEET_COLUMNS.firstName}" columns.`,
+    );
   }
+  const cell = (row: string[], idx: number) => (idx === -1 ? '' : (row[idx] ?? '').trim());
+  const nameOf = (row: string[]) =>
+    fullNameIdx !== -1
+      ? cell(row, fullNameIdx)
+      : joinName(cell(row, firstNameIdx), cell(row, lastNameIdx));
 
   let skipped = 0;
   const mapped: MappedRow[] = [];
   const issues: SheetIssue[] = [];
   const seen = new Set<string>();
   dataRows.forEach((row, i) => {
-    const registrantId = (row[regIdx] ?? '').trim();
-    const fullName = (row[nameIdx] ?? '').trim();
+    const registrantId = cell(row, regIdx);
+    const fullName = nameOf(row);
     const issue = (reason: SheetIssueReason) =>
       issues.push({ row: i + 2, registrantId, fullName, reason });
 
@@ -84,7 +106,7 @@ export function mapSheetRows(rows: string[][]): {
 
     const extra: Record<string, string> = {};
     header.forEach((col, j) => {
-      if (j === regIdx || j === nameIdx) return;
+      if (j === regIdx || j === fullNameIdx) return; // First/Last Name stay in extra for templates
       const value = (row[j] ?? '').trim();
       if (value) extra[col] = value;
     });

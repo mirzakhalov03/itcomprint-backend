@@ -85,6 +85,80 @@ async function main() {
     issueResult.mapped,
   );
 
+  // Main Sheet layout: no Full Name column — the name is built from First + Last Name.
+  const mainSheetResult = mapSheetRows([
+    [
+      'Reg. Number',
+      'First Name',
+      'Last Name',
+      'Username',
+      'Phone',
+      'Company',
+      'Job Title',
+      'Birthday',
+      'Track ', // stray trailing space in the header
+    ],
+    [
+      '19724',
+      'Shahrizoda',
+      "Jo'raqulova",
+      'shahriiizoda',
+      '998933310655',
+      'Yangi Ozbekiston',
+      'talaba',
+      '20.11.2006',
+      '',
+    ],
+    ['19727', 'Ibodullayeva Munisa', 'Ibodullayeva', 'kitobxon', '998936540627'],
+    ['19744', 'Билол', 'Худойназаров', '', '', '', '', '', 'Backend'],
+    ['19750', '', ''], // no name at all → reported
+  ]);
+  const [shahrizoda, munisa, bilol] = mainSheetResult.mapped;
+  check(
+    'mapSheetRows builds fullName from First + Last Name',
+    shahrizoda?.fullName === "Shahrizoda Jo'raqulova" && bilol?.fullName === 'Билол Худойназаров',
+    mainSheetResult.mapped,
+  );
+  check(
+    "mapSheetRows doesn't repeat a surname already in First Name",
+    munisa?.fullName === 'Ibodullayeva Munisa',
+    munisa,
+  );
+  check(
+    'mapSheetRows keeps every other Main Sheet column in extra',
+    shahrizoda?.extra.Company === 'Yangi Ozbekiston' &&
+      shahrizoda.extra['Job Title'] === 'talaba' &&
+      shahrizoda.extra.Phone === '998933310655' &&
+      shahrizoda.extra.Birthday === '20.11.2006' &&
+      shahrizoda.extra['First Name'] === 'Shahrizoda' &&
+      !('Track' in shahrizoda.extra) &&
+      bilol?.extra.Track === 'Backend',
+    mainSheetResult.mapped,
+  );
+  check(
+    'mapSheetRows reports a Main Sheet row with no name',
+    mainSheetResult.issues.length === 1 && mainSheetResult.issues[0].reason === 'missing_name',
+    mainSheetResult.issues,
+  );
+
+  const missingColumn = (() => {
+    try {
+      mapSheetRows([
+        ['Reg. Number', 'Last Name'],
+        ['R1', 'Doe'],
+      ]);
+      return 'did not throw';
+    } catch (err) {
+      return (err as { status?: number }).status;
+    }
+  })();
+  check(
+    'mapSheetRows on a tab missing its name column → 400',
+    missingColumn === 400,
+    missingColumn,
+  );
+  check('mapSheetRows on an empty tab → no rows, no error', mapSheetRows([]).mapped.length === 0);
+
   const { fetchSheetRows, __setTestSheetRows } = await import('../src/services/sheetSync.services');
 
   check(
@@ -914,8 +988,8 @@ async function main() {
     // Tab-linked sync: reads by gid, survives a rename, and a removed tab leaves the roster alone.
     __setTestSheetTabs(testEnv.MAIN_SHEET_ID, [{ gid: 444, title: 'Expo' }]);
     __setTestTabValues(testEnv.MAIN_SHEET_ID, 'Expo', [
-      ['Reg. Number', 'Full Name'],
-      ['T1', 'Nina Ray'],
+      ['Reg. Number', 'First Name', 'Last Name', 'Company'],
+      ['T1', 'Nina', 'Ray', 'Acme'],
     ]);
     const tabEvent = await SyncEventModel.create({
       name: 'Tab Linked Event',
@@ -926,12 +1000,18 @@ async function main() {
     });
     const tabSync = await syncEventAttendees(String(tabEvent._id));
     check('tab-linked sync reads the tab by gid', tabSync.added === 1, tabSync);
+    const [nina] = await listAttendees(String(tabEvent._id));
+    check(
+      'tab-linked sync maps Main Sheet columns (name from First + Last, rest in extra)',
+      nina?.fullName === 'Nina Ray' && nina.extra?.Company === 'Acme',
+      nina,
+    );
 
     __setTestSheetTabs(testEnv.MAIN_SHEET_ID, [{ gid: 444, title: 'Expo 2026' }]); // renamed
     __setTestTabValues(testEnv.MAIN_SHEET_ID, 'Expo 2026', [
-      ['Reg. Number', 'Full Name'],
-      ['T1', 'Nina Ray'],
-      ['T2', 'Omar Fay'],
+      ['Reg. Number', 'First Name', 'Last Name', 'Company'],
+      ['T1', 'Nina', 'Ray', 'Acme'],
+      ['T2', 'Omar', 'Fay', ''],
     ]);
     const renamedSync = await syncEventAttendees(String(tabEvent._id));
     check(
