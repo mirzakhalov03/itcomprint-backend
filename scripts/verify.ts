@@ -115,6 +115,40 @@ async function main() {
   const { env: testEnv } = await import('../src/config/env');
   check('env.MAIN_SHEET_ID is loaded', testEnv.MAIN_SHEET_ID === 'test-main-sheet-id');
 
+  const { tabRange, listSheetTabs, fetchTabRows, __setTestSheetTabs, __setTestTabValues } =
+    await import('../src/services/sheetSync.services');
+
+  check('tabRange quotes a plain title', tabRange('DevFest') === "'DevFest'!A:Z");
+  check('tabRange escapes an apostrophe', tabRange("Women's Tech") === "'Women''s Tech'!A:Z");
+
+  __setTestSheetTabs('tabs-fixture', [
+    { gid: 111, title: 'DevFest Tashkent' },
+    { gid: 222, title: 'Archive' },
+  ]);
+  const fixtureTabs = await listSheetTabs('tabs-fixture');
+  check(
+    'listSheetTabs returns gid + title',
+    fixtureTabs.length === 2 &&
+      fixtureTabs[0].gid === 111 &&
+      fixtureTabs[0].title === 'DevFest Tashkent',
+    fixtureTabs,
+  );
+
+  __setTestTabValues('tabs-fixture', 'DevFest Tashkent', [
+    ['Reg. Number', 'Full Name'],
+    ['R1', 'Jane Doe'],
+  ]);
+  check(
+    'fetchTabRows resolves gid → title and reads that tab',
+    (await fetchTabRows('tabs-fixture', 111)).length === 2,
+  );
+
+  const missingTab = await fetchTabRows('tabs-fixture', 333).then(
+    () => 'did not throw',
+    (err) => err.status,
+  );
+  check('fetchTabRows on a gid not in the sheet → 400', missingTab === 400, missingTab);
+
   await connectDb();
   const { ensureDefaultTemplate } = await import('../src/services/template.services');
   await ensureDefaultTemplate(); // server.ts seeds at boot; the harness mirrors it

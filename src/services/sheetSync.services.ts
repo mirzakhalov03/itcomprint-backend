@@ -125,23 +125,81 @@ export function __setTestSheetRows(sheetId: string, rows: string[][]): void {
   testRowsBySheetId.set(sheetId, rows);
 }
 
-export async function fetchSheetRows(sheetId: string): Promise<string[][]> {
-  if (isTest) {
-    return testRowsBySheetId.get(sheetId) ?? [];
-  }
-  const client = getJwtClient();
+const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
+
+// Every Sheets read funnels through here so access failures surface one friendly message.
+async function sheetsGet<T>(sheetId: string, path: string, context: string): Promise<T> {
   try {
-    const res = await client.request<{ values?: string[][] }>({
-      url: `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A:Z`,
-    });
-    return res.data.values ?? [];
+    const res = await getJwtClient().request<T>({ url: `${SHEETS_API}/${sheetId}${path}` });
+    return res.data;
   } catch (err) {
-    console.error('[sheetSync] fetchSheetRows failed for sheetId', sheetId, err);
+    console.error(`[sheetSync] ${context} failed for sheetId`, sheetId, err);
     throw new AppError(
       400,
       `Can't read this Google Sheet — share it with ${env.GOOGLE_SERVICE_ACCOUNT_EMAIL} and try again.`,
     );
   }
+}
+
+export async function fetchSheetRows(sheetId: string): Promise<string[][]> {
+  if (isTest) return testRowsBySheetId.get(sheetId) ?? [];
+  const data = await sheetsGet<{ values?: string[][] }>(sheetId, '/values/A:Z', 'fetchSheetRows');
+  return data.values ?? [];
+}
+
+export interface SheetTab {
+  gid: number;
+  title: string;
+}
+
+export const TAB_REMOVED_MESSAGE =
+  "This event's tab no longer exists in the Main Sheet — restore it in Google Sheets to resume syncing.";
+
+// Test bypass: stubs only the two HTTP reads, so gid → title resolution runs for real in verify.
+const testTabsBySheetId = new Map<string, SheetTab[]>();
+const testValuesByTab = new Map<string, string[][]>(); // `${sheetId}|${title}`
+
+export function __setTestSheetTabs(sheetId: string, tabs: SheetTab[]): void {
+  if (!isTest) throw new Error('__setTestSheetTabs is test-only');
+  testTabsBySheetId.set(sheetId, tabs);
+}
+
+export function __setTestTabValues(sheetId: string, title: string, rows: string[][]): void {
+  if (!isTest) throw new Error('__setTestTabValues is test-only');
+  testValuesByTab.set(`${sheetId}|${title}`, rows);
+}
+
+/** A1 range for a whole tab — quoted so spaces, apostrophes and Cyrillic titles parse. */
+export function tabRange(title: string): string {
+  return `'${title.replace(/'/g, "''")}'!A:Z`;
+}
+
+/** Metadata only — never reads cell values. */
+export async function listSheetTabs(sheetId: string): Promise<SheetTab[]> {
+  if (isTest) return testTabsBySheetId.get(sheetId) ?? [];
+  const data = await sheetsGet<{ sheets?: { properties: { sheetId: number; title: string } }[] }>(
+    sheetId,
+    '?fields=sheets.properties(sheetId,title)',
+    'listSheetTabs',
+  );
+  return (data.sheets ?? []).map(({ properties: p }) => ({ gid: p.sheetId, title: p.title }));
+}
+
+/**
+ * Reads a tab by its stable gid. The title is re-resolved every call, never cached: after a
+ * rename + reuse of the old name, a cached title would read another event's tab.
+ * (values.batchGetByDataFilter reads by gid directly but needs a write scope.)
+ */
+export async function fetchTabRows(sheetId: string, tabGid: number): Promise<string[][]> {
+  const tab = (await listSheetTabs(sheetId)).find((t) => t.gid === tabGid);
+  if (!tab) throw new AppError(400, TAB_REMOVED_MESSAGE);
+  if (isTest) return testValuesByTab.get(`${sheetId}|${tab.title}`) ?? [];
+  const data = await sheetsGet<{ values?: string[][] }>(
+    sheetId,
+    `/values/${encodeURIComponent(tabRange(tab.title))}`,
+    'fetchTabRows',
+  );
+  return data.values ?? [];
 }
 
 export async function syncRowsIntoEvent(
