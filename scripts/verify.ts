@@ -179,6 +179,80 @@ async function main() {
     blankExtra,
   );
 
+  const { parseBusPhrase, citySkeleton, mergeDetectedRoutes } =
+    await import('../src/utils/busRoutes');
+  check(
+    'parseBusPhrase reads all three bot languages',
+    JSON.stringify(
+      ['Bus from Kogan', 'Kogondan Avtobusda', 'Автобус из Кагана'].map(parseBusPhrase),
+    ) ===
+      JSON.stringify([
+        { lang: 'en', city: 'Kogan' },
+        { lang: 'uz', city: 'Kogon' },
+        { lang: 'ru', city: 'Кагана' },
+      ]),
+  );
+  check(
+    'parseBusPhrase ignores no-bus answers',
+    ["O'zim kelaman", 'Я приду сам', 'I will come on my own', 'Telegram'].every(
+      (v) => parseBusPhrase(v) === null,
+    ),
+  );
+  const skeletons = (names: string[]) => new Set(names.map(citySkeleton)).size === 1;
+  check(
+    'citySkeleton links spellings of one city across languages',
+    skeletons(['Kogon', 'Кагана', 'Kogan']) &&
+      skeletons(['Xiva', 'Хивы', 'Khiva']) &&
+      skeletons(['Buxoro', 'Бухары', 'Bukhara']) &&
+      skeletons(['Samarqand', 'Самарканда', 'Samarkand']) &&
+      skeletons(['Toshkent', 'Ташкента', 'Tashkent']),
+  );
+  check(
+    'citySkeleton keeps different cities apart',
+    citySkeleton('Kogan') !== citySkeleton('Khiva'),
+  );
+
+  const detected = mergeDetectedRoutes(
+    [],
+    [
+      'Kogondan Avtobusda',
+      "O'zim kelaman",
+      'Автобус из Кагана',
+      'Bus from Kogan',
+      'Автобус из Хивы',
+    ],
+  );
+  check(
+    'mergeDetectedRoutes groups one city into one English-labeled route',
+    detected.changed &&
+      detected.routes.length === 2 &&
+      detected.routes[0].label === 'Kogan' &&
+      detected.routes[0].phrases.length === 3 &&
+      detected.routes[1].label === 'Хивы',
+    detected.routes,
+  );
+  const humanRoutes = [
+    { label: 'Kogon bus', autoLabel: false, phrases: ['Kogondan Avtobusda'], hidden: false },
+    { label: 'Кагана', autoLabel: true, phrases: ['Автобус из Кагана'], hidden: true },
+  ];
+  const rerun = mergeDetectedRoutes(humanRoutes, [
+    'Kogondan Avtobusda',
+    'Автобус из Кагана',
+    'Bus from Kogan',
+  ]);
+  check(
+    'mergeDetectedRoutes never moves a placed phrase or renames a human label',
+    rerun.routes[0].label === 'Kogon bus' &&
+      rerun.routes[0].phrases.join() === 'Kogondan Avtobusda,Bus from Kogan' &&
+      rerun.routes[1].phrases.join() === 'Автобус из Кагана' &&
+      rerun.routes[1].hidden === true,
+    rerun.routes,
+  );
+  check(
+    'mergeDetectedRoutes reports no change when nothing is new',
+    !mergeDetectedRoutes(rerun.routes, ['Bus from Kogan', 'Telegram']).changed,
+  );
+
   const { fetchSheetRows, __setTestSheetRows } = await import('../src/services/sheetSync.services');
 
   check(

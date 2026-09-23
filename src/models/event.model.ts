@@ -1,5 +1,13 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
+/** A bus city: its chip label plus every bot answer (in any language) that means it. */
+export interface BusRoute {
+  label: string;
+  autoLabel: boolean; // true until a human renames it; sync may improve it
+  phrases: string[];
+  hidden: boolean;
+}
+
 export interface EventDoc extends Document {
   name: string;
   date: Date;
