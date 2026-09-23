@@ -1,0 +1,23 @@
+CLAUDE.md
+  s_c674d4c2c59867::t_793b94d944b537 31
+scripts/verify.ts
+  s_c674d4c2c59867::t_c4b6a5308a75f4 722-726,738-746
+src/services/event.services.ts
+  s_c674d4c2c59867::t_c88282b4ca94f2 75-78,91-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "9e36cd141ea531eba8cbc9183754be2b4d44e308",
+  "prompts": {},
+  "sessions": {
+    "s_c674d4c2c59867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8aec7056-3ec6-40d3-88c3-aa47502e9838",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
