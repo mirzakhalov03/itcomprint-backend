@@ -13,26 +13,43 @@ The API for **Roadshow Badge Printing** — an internal kiosk tool for IT Commun
 - `npm run verify` — the project's test harness (`scripts/verify.ts`). Spins up an in-memory MongoDB (`mongodb-memory-server`), boots the app via `createApp()` on port 4055, and asserts every endpoint + error path. **Run this after any backend change.** There are no unit tests and, per project preference, none should be added.
 - `npm run smoke` — builds, then boots the **compiled** `dist/server.js` in `NODE_ENV=production` against a throwaway Mongo and checks security headers, DB-aware health, and graceful SIGTERM shutdown. Run before deploying — `verify` never exercises the real `server.ts` entrypoint.
 
-Env (`.env`, Zod-validated at startup — see `.env.example`): `NODE_ENV`, `PORT`, `MONGODB_URI`, `CORS_ORIGIN` (comma-separated origin list), `GOOGLE_CLIENT_ID` (Google OAuth 2.0 Web client ID), `JWT_SECRET` (≥16 chars; signs session cookies), `MAIN_SHEET_ID` (the one fixed Main Sheet spreadsheet ID new events are created from), `COOKIE_DOMAIN` (optional; cross-subdomain sessions). Invalid/missing config logs the bad fields and exits before boot.
+Env (`.env`, Zod-validated at startup — see `.env.example`): `NODE_ENV`, `PORT`, `MONGODB_URI`, `CORS_ORIGIN` (comma-separated origin list), `GOOGLE_CLIENT_ID` (Google OAuth 2.0 Web client ID), `JWT_SECRET` (≥16 chars; signs session cookies), `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_SERVICE_ACCOUNT_KEY` (service account that reads the Main Sheet), `MAIN_SHEET_ID` (the one fixed Main Sheet spreadsheet ID new events are created from), `COOKIE_DOMAIN` (optional; cross-subdomain sessions). Invalid/missing config logs the bad fields and exits before boot.
 
 ## API surface
 
 All routes are mounted under `/api` (`app.ts`):
 
-| Method | Path                    | Purpose                                                                              |
-| ------ | ----------------------- | ------------------------------------------------------------------------------------ |
-| GET    | `/health`               | readiness — 200 `{ ok: true, db: 'up' }` only when Mongo is connected, else 503      |
-| POST   | `/auth/google`          | verify Google ID token, upsert user, set session cookie                              |
-| GET    | `/auth/me`              | return current user (requires session)                                               |
-| PATCH  | `/auth/me`              | update `displayName`, set `onboardedAt` on first call (requires session)             |
-| POST   | `/auth/logout`          | clear session cookie (requires session)                                              |
-| POST   | `/events`               | create an event **with its attendees** in one shot (requires session; stamps author) |
-| GET    | `/events`               | list events, each with `attendeeCount` (requires session)                            |
-| GET    | `/events/:id`           | one event (requires session)                                                         |
-| GET    | `/events/:id/attendees` | list attendees (requires session)                                                    |
-| POST   | `/attendees/:id/print`  | mark printed — also the reprint endpoint (requires session)                          |
+| Method | Path                     | Purpose                                                                                                                                                        |
+| ------ | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/health`                | readiness — 200 `{ ok: true, db: 'up' }` only when Mongo is connected, else 503                                                                                |
+| POST   | `/auth/google`           | verify Google ID token, upsert user, set session cookie                                                                                                        |
+| GET    | `/auth/me`               | return current user (requires session)                                                                                                                         |
+| PATCH  | `/auth/me`               | update `displayName`, set `onboardedAt` on first call (requires session)                                                                                       |
+| POST   | `/auth/logout`           | clear session cookie (requires session)                                                                                                                        |
+| POST   | `/events`                | create an event **with its attendees** in one shot (requires session; stamps author)                                                                           |
+| GET    | `/events`                | list events, each with `attendeeCount` (requires session)                                                                                                      |
+| GET    | `/events/sheet-tabs`     | list the Main Sheet's tabs with `available`/`linked`/`trashed` status (requires session)                                                                       |
+| POST   | `/events/sheet`          | create an event from a Main Sheet tab; body `{ name, date, tabGid }` — 409 if the tab is reserved by a live or trashed event (requires session; stamps author) |
+| GET    | `/events/trash`          | list trashed events, each with `purgeAt` (requires session)                                                                                                    |
+| GET    | `/events/:id`            | one event (requires session)                                                                                                                                   |
+| PATCH  | `/events/:id`            | update `name`/`date` and/or `templateId` (requires session)                                                                                                    |
+| DELETE | `/events/:id`            | soft delete — move to trash (requires session)                                                                                                                 |
+| POST   | `/events/:id/restore`    | restore a trashed event (requires session)                                                                                                                     |
+| DELETE | `/events/:id/permanent`  | hard delete — also frees its Main Sheet tab for relinking (requires session)                                                                                   |
+| GET    | `/events/:id/attendees`  | list attendees (requires session)                                                                                                                              |
+| POST   | `/events/:id/sync-sheet` | re-sync a tab-linked event's roster from the Main Sheet, returns `lastSyncedAt` (requires session; not logged)                                                 |
+| POST   | `/attendees/:id/print`   | mark printed — also the reprint endpoint (requires session)                                                                                                    |
+| DELETE | `/attendees/:id/print`   | undo a print — resets `printStatus`/`printCount`/`lastPrintedAt` (requires session)                                                                            |
+| GET    | `/templates`             | list badge templates (requires session)                                                                                                                        |
+| GET    | `/templates/field-keys`  | distinct `extra` keys across all attendees, for the editor's field picker (requires session)                                                                   |
+| POST   | `/templates`             | create a template (requires session)                                                                                                                           |
+| GET    | `/templates/:id`         | one template (requires session)                                                                                                                                |
+| PUT    | `/templates/:id`         | update a template (requires session)                                                                                                                           |
+| DELETE | `/templates/:id`         | delete a template — 400 for the default (requires session)                                                                                                     |
+| GET    | `/activity`              | page activity log 50 at a time by `_id` cursor, `?eventId&before` (requires session)                                                                           |
+| POST   | `/activity/printer`      | log a WebUSB printer connect/disconnect from the browser (requires session)                                                                                    |
 
-`/events` and `/attendees` are guarded by `requireAuth` (`middlewares/requireAuth.middleware.ts`), which reads the `session` httpOnly cookie, verifies the JWT, and attaches `req.user`. Auth routes are public.
+`/events`, `/attendees`, `/templates`, and `/activity` are guarded by `requireAuth` (`middlewares/requireAuth.middleware.ts`), which reads the `session` httpOnly cookie, verifies the JWT, and attaches `req.user`. Auth routes are public.
 
 ## Layering & conventions
 
@@ -63,9 +80,8 @@ Domain rules baked into the services:
 
 ## Deployment (Railway)
 
-Deployed to **Railway** from this monorepo. Config is declarative in `railway.json` (Dockerfile builder + `/api/health` healthcheck + restart policy).
+Deployed to **Railway** from this repo (`mirzakhalov03/itcomprint-backend` — separate from `frontend/`, no monorepo). Config is declarative in `railway.json` (Dockerfile builder + `/api/health` healthcheck + restart policy), with paths relative to this repo's root.
 
-- **Service Root Directory must be `backend`** (Railway dashboard → service Settings). The repo root has both `frontend/` and `backend/`; paths in `railway.json` (`Dockerfile`, `/api/health`) are relative to that root dir.
 - **Build**: multi-stage `Dockerfile` (build → prod-deps-only runtime, non-root `node`). `mongodb-memory-server` is a devDep, so `npm ci --omit=dev` keeps it (and its mongod download) out of the runtime image.
 - **Port**: Railway injects `PORT` at runtime; `env.PORT` reads it (the 4000 default and `EXPOSE` are dev-only). Don't hardcode a port.
 - **Required env vars** (Railway → Variables): `NODE_ENV=production`, `MONGODB_URI`, `CORS_ORIGIN` = the deployed frontend origin(s), `GOOGLE_CLIENT_ID`, `JWT_SECRET`, `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_SERVICE_ACCOUNT_KEY`, `MAIN_SHEET_ID`. For Mongo, add a Railway MongoDB service and reference its connection string, e.g. `MONGODB_URI=${{MongoDB.MONGO_URL}}`.
@@ -74,4 +90,4 @@ Deployed to **Railway** from this monorepo. Config is declarative in `railway.js
 
 ## Git note
 
-`backend/` is currently untracked in the repo. Secrets are safe to ignore: `.gitignore` excludes `.env`/`.env.*` (keeps `.env.example`), `node_modules`, `dist`, and logs.
+This is its own git repo (`mirzakhalov03/itcomprint-backend`), separate from `frontend/` — no monorepo, no root package manager. Secrets are safe to ignore: `.gitignore` excludes `.env`/`.env.*` (keeps `.env.example`), `node_modules`, `dist`, and logs.
