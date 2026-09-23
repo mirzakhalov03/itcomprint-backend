@@ -1,0 +1,23 @@
+scripts/verify.ts
+  s_404697d40bcca1::t_0b3ba5536878a5 182-255
+src/models/event.model.ts
+  s_404697d40bcca1::t_5eff2d9882b9c6 3-10
+src/utils/busRoutes.ts
+  s_404697d40bcca1::t_bc2471d132818d 1-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "55f93cd882f7d6939b8044d4f91119828e4dcc47",
+  "prompts": {},
+  "sessions": {
+    "s_404697d40bcca1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4829054a-93c9-465d-b752-a285ee13b921",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
