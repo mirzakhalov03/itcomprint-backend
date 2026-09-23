@@ -1,0 +1,19 @@
+CLAUDE.md
+  s_404697d40bcca1::t_5fe3791ef13e74 81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "2215f2bb14422c6fbfe557f2c54cbf3812685c0e",
+  "prompts": {},
+  "sessions": {
+    "s_404697d40bcca1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4829054a-93c9-465d-b752-a285ee13b921",
+        "model": "unknown"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
