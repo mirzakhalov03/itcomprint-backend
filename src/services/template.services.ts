@@ -2,6 +2,7 @@ import { BadgeTemplateModel, Zone } from '../models/badgeTemplate.model';
 import { AttendeeModel } from '../models/attendee.model';
 import { EventModel } from '../models/event.model';
 import { AppError } from '../utils/AppError';
+import { isDuplicateKeyError } from '../utils/isDuplicateKeyError';
 import { CreateTemplateInput } from '../validators/template.validators';
 
 const DEFAULT_ZONES: Zone[] = [
@@ -36,11 +37,7 @@ export async function ensureDefaultTemplate(): Promise<void> {
   } catch (err) {
     // Two instances racing to seed on cold boot both upsert; the loser hits the
     // partial unique index (one_default_template) — harmless, the winner already did the job.
-    const isDuplicateKey =
-      (err as { code?: number }).code === 11000 ||
-      ((err as { name?: string }).name === 'MongoServerError' &&
-        (err as { code?: number }).code === 11000);
-    if (!isDuplicateKey) throw err;
+    if (!isDuplicateKeyError(err)) throw err;
     console.log('[templates] default already seeded by another instance');
   }
 }
