@@ -14,8 +14,9 @@ export const eventRouter = Router();
 eventRouter.post('/', validate(createEventSchema), controller.create);
 eventRouter.post('/sheet', validate(createEventFromSheetSchema), controller.createFromSheet);
 eventRouter.get('/', controller.list);
-// Must come before '/:id' — otherwise 'trash' is parsed as an event id.
+// Must come before '/:id' — otherwise 'trash'/'sheet-tabs' are parsed as an event id.
 eventRouter.get('/trash', controller.listTrash);
+eventRouter.get('/sheet-tabs', controller.listSheetTabs);
 eventRouter.get('/:id', validate(eventIdParamSchema, 'params'), controller.getOne);
 
 eventRouter.patch(

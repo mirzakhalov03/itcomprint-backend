@@ -5,11 +5,6 @@ import { AppError } from '../utils/AppError';
 import { AttendeeModel } from '../models/attendee.model';
 import { EventModel } from '../models/event.model';
 
-export function extractSheetId(url: string): string | null {
-  const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  return match ? match[1] : null;
-}
-
 export const SHEET_COLUMNS = {
   registrantId: 'Reg. Number',
   fullName: 'Full Name',

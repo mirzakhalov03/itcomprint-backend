@@ -33,7 +33,7 @@ export type UpdateEventInput = z.infer<typeof updateEventSchema>;
 export const createEventFromSheetSchema = z.object({
   name: z.string().trim().min(1).max(200),
   date: z.iso.datetime({ offset: true }).or(z.iso.date()),
-  sheetUrl: z.string().url(),
+  tabGid: z.number().int().nonnegative(),
 });
 
 export type CreateEventFromSheetInput = z.infer<typeof createEventFromSheetSchema>;

@@ -73,6 +73,10 @@ export async function listTrash(_req: Request, res: Response) {
   res.json(await eventService.listTrash());
 }
 
+export async function listSheetTabs(_req: Request, res: Response) {
+  res.json(await eventService.listMainSheetTabs());
+}
+
 export async function createFromSheet(req: Request, res: Response) {
   const event = await eventService.createEventFromSheet(req.body, toAuthor(req.user!));
   await logEvent(req, 'event.create', event);

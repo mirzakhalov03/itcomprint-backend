@@ -8,7 +8,9 @@ import {
 } from '../validators/event.validators';
 import { AppError } from '../utils/AppError';
 import type { Author } from '../utils/author';
-import { extractSheetId, syncEventAttendees } from './sheetSync.services';
+import { env } from '../config/env';
+import { isDuplicateKeyError } from '../utils/isDuplicateKeyError';
+import { listSheetTabs, syncEventAttendees } from './sheetSync.services';
 
 // Creation isn't transactional: undo a half-created event so no empty event is left behind.
 async function deleteEventCascade(eventId: string) {
@@ -68,6 +70,23 @@ export async function listEvents() {
   return withAttendeeCounts(events);
 }
 
+export type SheetTabStatus = 'available' | 'linked' | 'trashed';
+
+export async function listMainSheetTabs() {
+  const [tabs, reserved] = await Promise.all([
+    listSheetTabs(env.MAIN_SHEET_ID),
+    // No deletedAt filter: trashed events keep their tab, mirroring the one_event_per_tab index.
+    EventModel.find(
+      { sheetId: env.MAIN_SHEET_ID, tabGid: { $ne: null } },
+      { tabGid: 1, deletedAt: 1 },
+    ).lean(),
+  ]);
+  const statusByGid = new Map<number | null, SheetTabStatus>(
+    reserved.map((e) => [e.tabGid, e.deletedAt ? 'trashed' : 'linked']),
+  );
+  return tabs.map((tab) => ({ ...tab, status: statusByGid.get(tab.gid) ?? 'available' }));
+}
+
 export async function getEvent(id: string) {
   const event = await EventModel.findOne({ _id: id, deletedAt: null }).lean();
   if (!event) throw new AppError(404, 'Event not found');
@@ -75,18 +94,23 @@ export async function getEvent(id: string) {
 }
 
 export async function createEventFromSheet(input: CreateEventFromSheetInput, author: Author) {
-  const sheetId = extractSheetId(input.sheetUrl);
-  if (!sheetId) throw new AppError(400, 'Could not find a Google Sheet ID in that URL');
-
-  const event = await EventModel.create({
-    name: input.name,
-    date: new Date(input.date),
-    authorId: author.id,
-    authorName: author.name,
-    authorPicture: author.picture,
-    sheetId,
-    sheetUrl: input.sheetUrl,
-  });
+  let event;
+  try {
+    event = await EventModel.create({
+      name: input.name,
+      date: new Date(input.date),
+      authorId: author.id,
+      authorName: author.name,
+      authorPicture: author.picture,
+      sheetId: env.MAIN_SHEET_ID,
+      tabGid: input.tabGid,
+    });
+  } catch (err) {
+    if (isDuplicateKeyError(err)) {
+      throw new AppError(409, 'That tab already has an event (check the trash) — pick another.');
+    }
+    throw err;
+  }
 
   try {
     const result = await syncEventAttendees(String(event._id));

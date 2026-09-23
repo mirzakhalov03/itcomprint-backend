@@ -39,16 +39,7 @@ async function main() {
   const mongoose = (await import('mongoose')).default;
 
   // Sheet sync: pure column mapping (no DB, no network needed)
-  const { extractSheetId, mapSheetRows } = await import('../src/services/sheetSync.services');
-
-  check(
-    'extractSheetId parses a standard Sheets URL',
-    extractSheetId('https://docs.google.com/spreadsheets/d/abc123XYZ/edit#gid=0') === 'abc123XYZ',
-  );
-  check(
-    'extractSheetId returns null for a non-Sheets URL',
-    extractSheetId('https://example.com') === null,
-  );
+  const { mapSheetRows } = await import('../src/services/sheetSync.services');
 
   const mapResult = mapSheetRows([
     ['Reg. Number', 'First Name', 'Last Name', 'Occupation', 'Full Name'],
@@ -712,25 +703,71 @@ async function main() {
     const expiredAttendees = await TrashAttendeeModel.find({ eventId: expiredEvent._id }).lean();
     check('purge cascades to attendees', expiredAttendees.length === 0, expiredAttendees);
 
-    // --- SHEET-LINKED EVENTS: creation + on-demand sync over HTTP ---
-    __setTestSheetRows('fixture-sheet-3', [
+    // --- SHEET-LINKED EVENTS: Main Sheet tab picker, creation, on-demand sync over HTTP ---
+    type TabRow = { gid: number; status: string };
+    const tabStatus = async (gid: number) =>
+      ((await afetch('/events/sheet-tabs').then((r) => r.json())) as TabRow[]).find(
+        (t) => t.gid === gid,
+      )?.status;
+    const createFromTab = (tabGid: unknown) =>
+      afetch('/events/sheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'DevFest Tashkent', date: '2026-10-01', tabGid }),
+      });
+
+    __setTestSheetTabs(testEnv.MAIN_SHEET_ID, [
+      { gid: 111, title: 'DevFest Tashkent' },
+      { gid: 222, title: 'Archive' },
+    ]);
+    __setTestTabValues(testEnv.MAIN_SHEET_ID, 'DevFest Tashkent', [
       ['Reg. Number', 'First Name', 'Last Name', 'Occupation', 'Full Name'],
       ['R1', 'Alice', 'Lee', 'Designer', 'Alice Lee'],
     ]);
-    const createSheetEventRes = await afetch('/events/sheet', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'Bot Event',
-        date: '2026-10-01',
-        sheetUrl: 'https://docs.google.com/spreadsheets/d/fixture-sheet-3/edit',
-      }),
-    });
+
+    const tabsRes = await afetch('/events/sheet-tabs');
+    const tabsBody = await tabsRes.json();
+    check('GET /events/sheet-tabs → 200', tabsRes.status === 200, tabsBody);
+    check(
+      'GET /events/sheet-tabs → all available before linking',
+      tabsBody.length === 2 && tabsBody.every((t: TabRow) => t.status === 'available'),
+      tabsBody,
+    );
+
+    const createSheetEventRes = await createFromTab(111);
     const sheetEvent = await createSheetEventRes.json();
     check('POST /events/sheet → 201', createSheetEventRes.status === 201, sheetEvent);
     check('POST /events/sheet → initial roster of 1', sheetEvent.added === 1, sheetEvent);
+    check(
+      'POST /events/sheet → stores Main Sheet id + tabGid',
+      sheetEvent.sheetId === testEnv.MAIN_SHEET_ID && sheetEvent.tabGid === 111,
+      sheetEvent,
+    );
+    check('GET /events/sheet-tabs → linked after creation', (await tabStatus(111)) === 'linked');
 
-    __setTestSheetRows('fixture-sheet-3', [
+    const { EventModel: TabEventModel } = await import('../src/models/event.model');
+    await TabEventModel.init(); // the unique index must be built before asserting on it
+    const dupRes = await createFromTab(111);
+    check(
+      'POST /events/sheet on an already-linked tab → 409',
+      dupRes.status === 409,
+      dupRes.status,
+    );
+
+    const eventCount = async () => (await afetch('/events').then((r) => r.json())).length;
+    const countBeforeBadGid = await eventCount();
+    const unknownGidRes = await createFromTab(999);
+    check(
+      'POST /events/sheet with a gid not in the Main Sheet → 400',
+      unknownGidRes.status === 400,
+      unknownGidRes.status,
+    );
+    check('unknown gid leaves no half-created event', (await eventCount()) === countBeforeBadGid);
+
+    const badGidRes = await createFromTab('not-a-number');
+    check('POST /events/sheet with non-numeric tabGid → 400', badGidRes.status === 400);
+
+    __setTestTabValues(testEnv.MAIN_SHEET_ID, 'DevFest Tashkent', [
       ['Reg. Number', 'First Name', 'Last Name', 'Occupation', 'Full Name'],
       ['R1', 'Alice', 'Lee', 'Designer', 'Alice Lee'],
       ['R2', 'Bob', 'Kim', 'PM', 'Bob Kim'], // walk-in registers mid-event
@@ -753,19 +790,20 @@ async function main() {
       badSyncRes.status,
     );
 
-    const badUrlRes = await afetch('/events/sheet', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'Bad',
-        date: '2026-10-01',
-        sheetUrl: 'https://example.com/not-a-sheet',
-      }),
-    });
+    // A trashed event keeps its tab (so restoring it is always safe); only a hard delete frees it.
+    await afetch(`/events/${sheetEvent._id}`, { method: 'DELETE' });
     check(
-      'POST /events/sheet with unparseable URL → 400',
-      badUrlRes.status === 400,
-      badUrlRes.status,
+      'GET /events/sheet-tabs → trashed event still holds its tab',
+      (await tabStatus(111)) === 'trashed',
+    );
+    check(
+      'POST /events/sheet on a tab held by a trashed event → 409',
+      (await createFromTab(111)).status === 409,
+    );
+    await afetch(`/events/${sheetEvent._id}/permanent`, { method: 'DELETE' });
+    check(
+      'GET /events/sheet-tabs → available again after permanent delete',
+      (await tabStatus(111)) === 'available',
     );
 
     // --- SHEET SYNC: upsert + orchestration (needs DB, no HTTP required) ---
