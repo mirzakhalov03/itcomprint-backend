@@ -1,0 +1,21 @@
+src/services/template.services.ts
+  s_19393f319e83a3::t_d1f3785dfa807c 5,40
+src/utils/isDuplicateKeyError.ts
+  s_19393f319e83a3::t_82300101bf4a33 1-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "6b57a1e912f0b69760f6d6bcee083640b9d3a7ed",
+  "prompts": {},
+  "sessions": {
+    "s_19393f319e83a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-af91c1ef1dbc2acf3",
+        "model": "unknown"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
