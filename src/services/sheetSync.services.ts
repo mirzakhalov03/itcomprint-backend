@@ -5,6 +5,7 @@ import { AppError } from '../utils/AppError';
 import { AttendeeModel } from '../models/attendee.model';
 import { EventModel } from '../models/event.model';
 import { columnLetter } from '../utils/columnLetter';
+import { mergeDetectedRoutes } from '../utils/busRoutes';
 
 export const SHEET_COLUMNS = {
   registrantId: 'Reg. Number',
@@ -298,6 +299,11 @@ export async function syncEventAttendees(eventId: string): Promise<{
         )
       : 0;
 
+  const detected = mergeDetectedRoutes(
+    event.busRoutes,
+    mapped.flatMap((r) => Object.values(r.extra)),
+  );
+  if (detected.changed) event.busRoutes = detected.routes;
   event.lastSyncedAt = new Date();
   await event.save();
 

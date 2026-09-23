@@ -21,7 +21,18 @@ export interface EventDoc extends Document {
   tabGid: number | null;
   lastSyncedAt: Date | null;
   deletedAt: Date | null;
+  busRoutes: BusRoute[];
 }
+
+const busRouteSchema = new Schema<BusRoute>(
+  {
+    label: { type: String, required: true, trim: true },
+    autoLabel: { type: Boolean, default: true },
+    phrases: { type: [String], default: [] },
+    hidden: { type: Boolean, default: false },
+  },
+  { _id: false }, // the label is the key; routes are always replaced wholesale
+);
 
 const eventSchema = new Schema<EventDoc>({
   name: { type: String, required: true, trim: true },
@@ -40,6 +51,8 @@ const eventSchema = new Schema<EventDoc>({
   // Main Sheet tab this event reads from, by stable gid (tabs can be renamed). null → legacy/XLSX event.
   tabGid: { type: Number, default: null },
   lastSyncedAt: { type: Date, default: null },
+  // Bus cities detected from sheet answers on sync; staff can rename/regroup/hide them.
+  busRoutes: { type: [busRouteSchema], default: [] },
   // Soft-delete: set when an event is moved to trash, cleared on restore.
   // Trashed events are hidden from listEvents and hard-deleted 45 days later.
   deletedAt: { type: Date, default: null, index: true },

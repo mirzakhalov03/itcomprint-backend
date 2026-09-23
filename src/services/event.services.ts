@@ -158,6 +158,7 @@ export async function updateEvent(eventId: string, input: UpdateEventInput) {
   if (input.name !== undefined) update.name = input.name;
   if (input.date !== undefined) update.date = new Date(input.date);
   if (input.templateId !== undefined) update.templateId = input.templateId;
+  if (input.busRoutes !== undefined) update.busRoutes = input.busRoutes;
 
   const event = await EventModel.findOneAndUpdate(
     { _id: eventId, deletedAt: null },

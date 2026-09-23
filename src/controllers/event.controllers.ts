@@ -45,7 +45,7 @@ export async function update(req: Request, res: Response) {
     const templateName = await templateService.getTemplateName(input.templateId);
     await logEvent(req, 'event.template', event, templateName);
   }
-  if (input.name !== undefined || input.date !== undefined) {
+  if (input.name !== undefined || input.date !== undefined || input.busRoutes !== undefined) {
     await logEvent(req, 'event.update', event);
   }
   res.json(event);

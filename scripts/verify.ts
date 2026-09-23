@@ -1245,6 +1245,90 @@ async function main() {
       globalFeed.items,
     );
 
+    // --- BUS ROUTES: detected on sync, edited over PATCH, edits survive resync ---
+    __setTestSheetTabs(testEnv.MAIN_SHEET_ID, [{ gid: 777, title: 'Bukhara Roadshow' }]);
+    const busHeader = ['Reg. Number', 'First Name', 'Last Name', 'Kogondan keladigan mehmonlar'];
+    __setTestTabValues(testEnv.MAIN_SHEET_ID, 'Bukhara Roadshow', [
+      busHeader,
+      ['B1', 'Ali', 'V', 'Kogondan Avtobusda'],
+      ['B2', 'Olga', 'P', '', '', 'Автобус из Кагана'], // past the header → column F
+      ['B3', 'Sam', 'K', '', '', '', 'Bus from Kogan'],
+      ['B4', 'Iva', 'N', "O'zim kelaman"],
+    ]);
+    const busEvent = await afetch('/events/sheet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Bukhara Roadshow', date: '2026-10-05', tabGid: 777 }),
+    }).then((r) => r.json());
+    const getBusRoutes = async () =>
+      (await afetch(`/events/${busEvent._id}`).then((r) => r.json())).busRoutes;
+    const firstRoutes = await getBusRoutes();
+    check(
+      'sync on link → one Kogan route holding all three languages',
+      firstRoutes?.length === 1 &&
+        firstRoutes[0].label === 'Kogan' &&
+        firstRoutes[0].autoLabel === true &&
+        firstRoutes[0].phrases.length === 3,
+      firstRoutes,
+    );
+
+    const patchRoutes = (busRoutes: unknown) =>
+      afetch(`/events/${busEvent._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ busRoutes }),
+      });
+    // Human splits the Russian phrase into its own route and renames the first.
+    const editRes = await patchRoutes([
+      {
+        label: 'Kogon bus',
+        autoLabel: false,
+        phrases: ['Kogondan Avtobusda', 'Bus from Kogan'],
+        hidden: false,
+      },
+      { label: 'Kagan (ru)', autoLabel: false, phrases: ['Автобус из Кагана'], hidden: true },
+    ]);
+    check('PATCH busRoutes → 200', editRes.status === 200, editRes.status);
+
+    __setTestTabValues(testEnv.MAIN_SHEET_ID, 'Bukhara Roadshow', [
+      busHeader,
+      ['B1', 'Ali', 'V', 'Kogondan Avtobusda'],
+      ['B2', 'Olga', 'P', '', '', 'Автобус из Кагана'],
+      ['B3', 'Sam', 'K', '', '', '', 'Bus from Kogan'],
+      ['B5', 'Zara', 'M', '', '', '', 'Bus from Khiva'], // a new city registers later
+    ]);
+    await afetch(`/events/${busEvent._id}/sync-sheet`, { method: 'POST' });
+    const resynced = await getBusRoutes();
+    check(
+      'resync keeps human labels, the split, and hidden; adds the new city',
+      resynced.length === 3 &&
+        resynced[0].label === 'Kogon bus' &&
+        resynced[1].label === 'Kagan (ru)' &&
+        resynced[1].hidden === true &&
+        resynced[1].phrases.join() === 'Автобус из Кагана' &&
+        resynced[2].label === 'Khiva',
+      resynced,
+    );
+
+    const dupPhraseRes = await patchRoutes([
+      { label: 'A', autoLabel: false, phrases: ['Bus from Kogan'], hidden: false },
+      { label: 'B', autoLabel: false, phrases: ['Bus from Kogan'], hidden: false },
+    ]);
+    check('PATCH busRoutes with a phrase in two routes → 400', dupPhraseRes.status === 400);
+    const dupLabelRes = await patchRoutes([
+      { label: 'Kogan', autoLabel: false, phrases: ['Bus from Kogan'], hidden: false },
+      { label: 'kogan', autoLabel: false, phrases: ['Bus from Khiva'], hidden: false },
+    ]);
+    check('PATCH busRoutes with duplicate labels → 400', dupLabelRes.status === 400);
+    const emptyLabelRes = await patchRoutes([
+      { label: '  ', autoLabel: false, phrases: ['Bus from Kogan'], hidden: false },
+    ]);
+    check('PATCH busRoutes with an empty label → 400', emptyLabelRes.status === 400);
+    const emptyRouteRes = await patchRoutes([
+      { label: 'Ghost', autoLabel: false, phrases: [], hidden: false },
+    ]);
+    check('PATCH busRoutes with a phrase-less route → 400', emptyRouteRes.status === 400);
+
     // --- LOGOUT ---
     const logoutRes = await afetch('/auth/logout', { method: 'POST' });
     check('POST /auth/logout → 204', logoutRes.status === 204, logoutRes.status);
