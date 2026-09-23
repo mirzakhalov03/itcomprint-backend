@@ -1,0 +1,27 @@
+scripts/verify.ts
+  s_c674d4c2c59867::t_5e0de833acb0ce 42,706-723,727-737,741-746,748-770,793-803,805-806
+src/validators/event.validators.ts
+  s_c674d4c2c59867::t_a528834028144a 36
+src/controllers/event.controllers.ts
+  s_c674d4c2c59867::t_b79026c283af42 76-79
+src/routes/event.routes.ts
+  s_c674d4c2c59867::t_58be9c45f3edb0 17,19
+src/services/event.services.ts
+  s_c674d4c2c59867::t_814c6b103a457a 11-13,73-89,97-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "ee098a5dc02cf7804b522da0f58f519c1081737a",
+  "prompts": {},
+  "sessions": {
+    "s_c674d4c2c59867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8aec7056-3ec6-40d3-88c3-aa47502e9838",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
