@@ -78,6 +78,7 @@ Domain rules baked into the services:
 - **Trash**: `purgeExpiredTrash()` runs hourly from `server.ts`; `GET /events/trash` hides expired items and returns `purgeAt`.
 - **`POST /events/:id/sync-sheet` returns `lastSyncedAt`.**
 - **Sheet columns** (`mapSheetRows`): `Reg. Number` is the attendee ID. The name is `Full Name` when that column exists (legacy per-event sheets), else `First Name` + `Last Name` (the Main Sheet: Reg. Number, First Name, Last Name, Username, Phone, Company, Job Title, Birthday, Track). Every other non-empty column goes into `extra`. A header missing the ID or a name column throws 400, surfaced on the kiosk.
+- **Bus route sync** (`sheetSync.services.ts`): every sync scans attendee `extra` for the bot's three-language bus-route answers and appends unseen phrases to `event.busRoutes` without renaming, moving, or deleting prior labels — preserving manual edits from Edit Event. Blank column headers are keyed by column letter (`L`, `N`, …) since the bot columns sit past the Main Sheet's labeled headers. `verify.ts` exercises both merge and keying behavior.
 
 ## Deployment (Railway)
 
