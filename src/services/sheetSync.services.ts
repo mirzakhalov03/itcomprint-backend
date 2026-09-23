@@ -4,6 +4,7 @@ import { env, isTest } from '../config/env';
 import { AppError } from '../utils/AppError';
 import { AttendeeModel } from '../models/attendee.model';
 import { EventModel } from '../models/event.model';
+import { columnLetter } from '../utils/columnLetter';
 
 export const SHEET_COLUMNS = {
   registrantId: 'Reg. Number',
@@ -43,7 +44,8 @@ function joinName(first: string, last: string): string {
 /**
  * Maps raw Sheets API rows (first row = header) into attendee shape.
  * The name comes from a Full Name column when present, else First + Last Name;
- * every other non-empty column lands in `extra`. A header without the ID or a
+ * every other non-empty column lands in `extra`, keyed by header (or column letter when the header is blank).
+ * A header without the ID or a
  * name column throws, so a malformed tab surfaces instead of syncing nothing.
  * A row missing registrantId or fullName, a repeated registrantId, or the
  * template's "do not change" row is skipped, not fatal. Half-filled rows and
@@ -105,10 +107,12 @@ export function mapSheetRows(rows: string[][]): {
     seen.add(registrantId);
 
     const extra: Record<string, string> = {};
-    header.forEach((col, j) => {
+    // Walk the row, not the header: Sheets trims trailing blank header cells, and the
+    // bot's per-language answer columns often sit past them.
+    row.forEach((raw, j) => {
       if (j === regIdx || j === fullNameIdx) return; // First/Last Name stay in extra for templates
-      const value = (row[j] ?? '').trim();
-      if (value) extra[col] = value;
+      const value = (raw ?? '').trim();
+      if (value) extra[header[j] || columnLetter(j)] = value;
     });
     mapped.push({ registrantId, fullName, extra });
   });

@@ -159,6 +159,26 @@ async function main() {
   );
   check('mapSheetRows on an empty tab → no rows, no error', mapSheetRows([]).mapped.length === 0);
 
+  const { columnLetter } = await import('../src/utils/columnLetter');
+  check('columnLetter maps A, Z, AA, AZ', [0, 25, 26, 51].map(columnLetter).join() === 'A,Z,AA,AZ');
+
+  // Sheets trims trailing empty header cells; the bot's per-language columns sit past them.
+  const blankHeaderResult = mapSheetRows([
+    ['Reg. Number', 'First Name', '', 'Company'],
+    ['R1', 'Ann', 'mid-blank', 'Acme', '', 'Xivadan Avtobusda', 'Telegram kanaldan'],
+  ]);
+  const blankExtra = blankHeaderResult.mapped[0].extra;
+  check(
+    'mapSheetRows keys a blank mid-row header by column letter',
+    blankExtra.C === 'mid-blank' && !('' in blankExtra),
+    blankExtra,
+  );
+  check(
+    'mapSheetRows keeps columns past the last header, keyed by letter',
+    blankExtra.F === 'Xivadan Avtobusda' && blankExtra.G === 'Telegram kanaldan',
+    blankExtra,
+  );
+
   const { fetchSheetRows, __setTestSheetRows } = await import('../src/services/sheetSync.services');
 
   check(
