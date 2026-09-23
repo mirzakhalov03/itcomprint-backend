@@ -56,7 +56,7 @@ Two collections (`models/`):
 
 Domain rules baked into the services:
 
-- **Events are created with their attendees** (`createEventWithAttendees` → `insertMany`). There is intentionally no per-attendee create/update/delete endpoint.
+- **Events are created with their attendees** (`createEventWithAttendees` → `insertMany`), or from a Main Sheet tab (`createEventFromSheet`). There is intentionally no per-attendee create/update/delete endpoint.
 - **Print and reprint are one endpoint**: `markPrinted` does `$inc: { printCount: 1 }` + sets `printStatus: 'printed'` and `lastPrintedAt`. The frontend renders "Print" vs "Reprint" off `printStatus`.
 - **Trash**: `purgeExpiredTrash()` runs hourly from `server.ts`; `GET /events/trash` hides expired items and returns `purgeAt`.
 - **`POST /events/:id/sync-sheet` returns `lastSyncedAt`.**
@@ -68,7 +68,7 @@ Deployed to **Railway** from this monorepo. Config is declarative in `railway.js
 - **Service Root Directory must be `backend`** (Railway dashboard → service Settings). The repo root has both `frontend/` and `backend/`; paths in `railway.json` (`Dockerfile`, `/api/health`) are relative to that root dir.
 - **Build**: multi-stage `Dockerfile` (build → prod-deps-only runtime, non-root `node`). `mongodb-memory-server` is a devDep, so `npm ci --omit=dev` keeps it (and its mongod download) out of the runtime image.
 - **Port**: Railway injects `PORT` at runtime; `env.PORT` reads it (the 4000 default and `EXPOSE` are dev-only). Don't hardcode a port.
-- **Required env vars** (Railway → Variables): `NODE_ENV=production`, `MONGODB_URI`, `CORS_ORIGIN` = the deployed frontend origin(s). For Mongo, add a Railway MongoDB service and reference its connection string, e.g. `MONGODB_URI=${{MongoDB.MONGO_URL}}`.
+- **Required env vars** (Railway → Variables): `NODE_ENV=production`, `MONGODB_URI`, `CORS_ORIGIN` = the deployed frontend origin(s), `GOOGLE_CLIENT_ID`, `JWT_SECRET`, `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_SERVICE_ACCOUNT_KEY`, `MAIN_SHEET_ID`. For Mongo, add a Railway MongoDB service and reference its connection string, e.g. `MONGODB_URI=${{MongoDB.MONGO_URL}}`.
 - `trust proxy: 1` and SIGTERM graceful shutdown already match Railway's edge proxy and redeploy/stop signals. Node `>=22` pinned via `engines` + `.nvmrc`.
 - Run `npm run smoke` locally before pushing — it boots the compiled server exactly as the container will.
 
