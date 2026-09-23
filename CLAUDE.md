@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-The API for **Roadshow Badge Printing** — an internal kiosk tool for IT Community of Uzbekistan events. Express 5 + Mongoose 9 + Zod 4 on Node/TypeScript (CommonJS output (no "type": "module"), module: NodeNext). The frontend (`../frontend`) does spreadsheet parsing and printing client-side; this backend only persists events/attendees and tracks print status. See `../CLAUDE.md` for the whole-project picture.
+The API for **Roadshow Badge Printing** — an internal kiosk tool for IT Community of Uzbekistan events. Express 5 + Mongoose 9 + Zod 4 on Node/TypeScript (CommonJS output (no "type": "module"), module: NodeNext). The frontend (`../frontend`) no longer parses spreadsheets — events are created by picking a tab from the fixed Main Sheet, and this backend syncs that tab's rows server-side (`sheetSync.services.ts`) plus persists events/attendees and tracks print status. See `../CLAUDE.md` for the whole-project picture.
 
 ## Commands
 
@@ -13,7 +13,7 @@ The API for **Roadshow Badge Printing** — an internal kiosk tool for IT Commun
 - `npm run verify` — the project's test harness (`scripts/verify.ts`). Spins up an in-memory MongoDB (`mongodb-memory-server`), boots the app via `createApp()` on port 4055, and asserts every endpoint + error path. **Run this after any backend change.** There are no unit tests and, per project preference, none should be added.
 - `npm run smoke` — builds, then boots the **compiled** `dist/server.js` in `NODE_ENV=production` against a throwaway Mongo and checks security headers, DB-aware health, and graceful SIGTERM shutdown. Run before deploying — `verify` never exercises the real `server.ts` entrypoint.
 
-Env (`.env`, Zod-validated at startup — see `.env.example`): `NODE_ENV`, `PORT`, `MONGODB_URI`, `CORS_ORIGIN` (comma-separated origin list), `GOOGLE_CLIENT_ID` (Google OAuth 2.0 Web client ID), `JWT_SECRET` (≥16 chars; signs session cookies), `COOKIE_DOMAIN` (optional; cross-subdomain sessions). Invalid/missing config logs the bad fields and exits before boot.
+Env (`.env`, Zod-validated at startup — see `.env.example`): `NODE_ENV`, `PORT`, `MONGODB_URI`, `CORS_ORIGIN` (comma-separated origin list), `GOOGLE_CLIENT_ID` (Google OAuth 2.0 Web client ID), `JWT_SECRET` (≥16 chars; signs session cookies), `MAIN_SHEET_ID` (the one fixed Main Sheet spreadsheet ID new events are created from), `COOKIE_DOMAIN` (optional; cross-subdomain sessions). Invalid/missing config logs the bad fields and exits before boot.
 
 ## API surface
 
@@ -51,7 +51,7 @@ Strict MVC: **`routes → controllers → services → models`**, plus `validato
 
 Two collections (`models/`):
 
-- **Event**: `name`, `date`, `createdAt`. `attendeeCount` is _not_ stored — `listEvents` derives it via an `$group` aggregation over attendees.
+- **Event**: `name`, `date`, `createdAt`, `sheetId`, `tabGid` (Main Sheet tab gid; `null` for legacy URL-linked events). `attendeeCount` is _not_ stored — `listEvents` derives it via an `$group` aggregation over attendees. A partial unique index `one_event_per_tab` on `{ sheetId, tabGid }` (excluding null `tabGid`) reserves a tab to one event while it's live or trashed — only a hard delete frees it for relinking.
 - **Attendee**: `eventId`, `fullName`, `extra` (free-form `Record<string,string>` from spreadsheet columns), `printStatus`, `printCount`, `lastPrintedAt`.
 
 Domain rules baked into the services:
