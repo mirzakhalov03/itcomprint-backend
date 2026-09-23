@@ -10,6 +10,7 @@ export interface EventDoc extends Document {
   templateId: Types.ObjectId | null;
   sheetId: string | null;
   sheetUrl: string | null;
+  tabGid: number | null;
   lastSyncedAt: Date | null;
   deletedAt: Date | null;
 }
@@ -28,10 +29,23 @@ const eventSchema = new Schema<EventDoc>({
   createdAt: { type: Date, default: Date.now },
   sheetId: { type: String, default: null },
   sheetUrl: { type: String, default: null },
+  // Main Sheet tab this event reads from, by stable gid (tabs can be renamed). null → legacy/XLSX event.
+  tabGid: { type: Number, default: null },
   lastSyncedAt: { type: Date, default: null },
   // Soft-delete: set when an event is moved to trash, cleared on restore.
   // Trashed events are hidden from listEvents and hard-deleted 45 days later.
   deletedAt: { type: Date, default: null, index: true },
 });
+
+// One event per Main Sheet tab. Trashed events keep their reservation so a restore can't collide;
+// only a hard delete frees the tab. Null tabGids (legacy/XLSX events) are outside the index.
+eventSchema.index(
+  { sheetId: 1, tabGid: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { tabGid: { $type: 'number' } },
+    name: 'one_event_per_tab',
+  },
+);
 
 export const EventModel = model<EventDoc>('Event', eventSchema);
