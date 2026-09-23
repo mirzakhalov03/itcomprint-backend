@@ -1,0 +1,19 @@
+src/utils/busRoutes.ts
+  s_1deaecfa764782::t_a0ed0182567367 69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "b21e63a6e4cb5ee018e9af172d0f1342c73f422d",
+  "prompts": {},
+  "sessions": {
+    "s_1deaecfa764782": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ac760bc6bf36eaa91",
+        "model": "unknown"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
