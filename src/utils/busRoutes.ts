@@ -66,7 +66,7 @@ export function parseBusPhrase(value: string): { lang: Lang; city: string } | nu
  * Dropping vowels also strips Russian case endings (Кагана → kgn = Kogan).
  */
 export function citySkeleton(city: string): string {
-  const latin = [...city.toLowerCase().replace(/['ʻʼ''`]/g, '')]
+  const latin = [...city.toLowerCase().replace(/['ʻʼ‘’`]/g, '')]
     .map((ch) => CYRILLIC[ch] ?? ch)
     .join('');
   return latin
