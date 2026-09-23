@@ -3,7 +3,7 @@ import { JWT } from 'google-auth-library';
 import { env, isTest } from '../config/env';
 import { AppError } from '../utils/AppError';
 import { AttendeeModel } from '../models/attendee.model';
-import { EventModel } from '../models/event.model';
+import { EventModel, type BusRoute } from '../models/event.model';
 import { columnLetter } from '../utils/columnLetter';
 import { mergeDetectedRoutes } from '../utils/busRoutes';
 
@@ -299,21 +299,38 @@ export async function syncEventAttendees(eventId: string): Promise<{
         )
       : 0;
 
-  const detected = mergeDetectedRoutes(
-    event.busRoutes,
+  await applyDetectedRoutes(
+    eventId,
+    event.toObject().busRoutes,
     mapped.flatMap((r) => Object.values(r.extra)),
   );
-  if (detected.changed) event.busRoutes = detected.routes;
-  event.lastSyncedAt = new Date();
-  await event.save();
+  // Targeted $set, not event.save(): the loaded doc is stale by now and must not write back.
+  const lastSyncedAt = new Date();
+  await EventModel.updateOne({ _id: eventId }, { $set: { lastSyncedAt } });
 
-  return {
-    added,
-    updated,
-    removed,
-    skipped,
-    total: mapped.length + skipped,
-    issues,
-    lastSyncedAt: event.lastSyncedAt!,
-  };
+  return { added, updated, removed, skipped, total: mapped.length + skipped, issues, lastSyncedAt };
+}
+
+/**
+ * Merges detected phrases into the routes as they were read (`snapshot`), writing only if
+ * they're still unchanged — a PATCH that landed mid-sync wins. Skipping is safe: the merge
+ * is idempotent, so the next sync re-detects against the edited routes. Returns whether it wrote.
+ */
+export async function applyDetectedRoutes(
+  eventId: string,
+  snapshot: BusRoute[],
+  values: Iterable<string>,
+): Promise<boolean> {
+  const detected = mergeDetectedRoutes(snapshot, values);
+  if (!detected.changed) return false;
+  // Events predating bus routes have no busRoutes field at all, which `[]` wouldn't match.
+  const unchanged =
+    snapshot.length > 0
+      ? { busRoutes: snapshot }
+      : { $or: [{ busRoutes: { $size: 0 } }, { busRoutes: { $exists: false } }] };
+  const result = await EventModel.updateOne(
+    { _id: eventId, ...unchanged },
+    { $set: { busRoutes: detected.routes } },
+  );
+  return result.matchedCount > 0;
 }

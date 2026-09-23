@@ -95,7 +95,8 @@ function labelFor(phrases: string[]): string {
 /**
  * Places bus phrases no route holds yet: into a route with the same city skeleton,
  * else a new route. Additive only — never moves a placed phrase, renames a
- * human-set label, or removes anything, so edits made in the app survive every sync.
+ * human-set label, duplicates a label, or removes anything, so edits made in the
+ * app survive every sync.
  */
 export function mergeDetectedRoutes(
   routes: readonly BusRoute[],
@@ -122,13 +123,25 @@ export function mergeDetectedRoutes(
     changed = true;
   }
 
+  // Labels stay unique (case-insensitive), matching the PATCH invariant the UI relies on.
+  const taken = (label: string, self: BusRoute) =>
+    next.some((r) => r !== self && r.label.toLowerCase() === label.toLowerCase());
+
   for (const route of next) {
     if (!route.autoLabel) continue;
     const label = labelFor(route.phrases);
-    if (label !== route.label) {
-      route.label = label;
-      changed = true;
-    }
+    if (label === route.label) continue;
+    const clash = taken(label, route);
+    // Rather keep a labelled route's current name than duplicate another route's.
+    if (clash && route.label) continue;
+    route.label = clash ? freeLabel(label, (l) => taken(l, route)) : label;
+    changed = true;
   }
   return { routes: next, changed };
+}
+
+function freeLabel(base: string, isTaken: (label: string) => boolean): string {
+  let label = base;
+  for (let n = 2; isTaken(label); n++) label = `${base} (${n})`;
+  return label;
 }

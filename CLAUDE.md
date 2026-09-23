@@ -32,7 +32,7 @@ All routes are mounted under `/api` (`app.ts`):
 | POST   | `/events/sheet`          | create an event from a Main Sheet tab; body `{ name, date, tabGid }` — 409 if the tab is reserved by a live or trashed event (requires session; stamps author)                         |
 | GET    | `/events/trash`          | list trashed events, each with `purgeAt` (requires session)                                                                                                                            |
 | GET    | `/events/:id`            | one event (requires session)                                                                                                                                                           |
-| PATCH  | `/events/:id`            | update `name`/`date` and/or `templateId` (requires session)                                                                                                                            |
+| PATCH  | `/events/:id`            | update `name`/`date`, `templateId`, and/or `busRoutes` (requires session)                                                                                                              |
 | DELETE | `/events/:id`            | soft delete — move to trash (requires session)                                                                                                                                         |
 | POST   | `/events/:id/restore`    | restore a trashed event (requires session)                                                                                                                                             |
 | DELETE | `/events/:id/permanent`  | hard delete — also frees its Main Sheet tab for relinking (requires session)                                                                                                           |
@@ -68,7 +68,7 @@ Strict MVC: **`routes → controllers → services → models`**, plus `validato
 
 Two collections (`models/`):
 
-- **Event**: `name`, `date`, `createdAt`, `sheetId`, `tabGid` (Main Sheet tab gid; `null` for legacy URL-linked events). `attendeeCount` is _not_ stored — `listEvents` derives it via an `$group` aggregation over attendees. A partial unique index `one_event_per_tab` on `{ sheetId, tabGid }` (excluding null `tabGid`) reserves a tab to one event while it's live or trashed — only a hard delete frees it for relinking.
+- **Event**: `name`, `date`, `createdAt`, `sheetId`, `tabGid` (Main Sheet tab gid; `null` for legacy URL-linked events), `busRoutes` (`{ label, autoLabel, phrases, hidden }[]` — bus cities detected on sync, editable via PATCH). `attendeeCount` is _not_ stored — `listEvents` derives it via an `$group` aggregation over attendees. A partial unique index `one_event_per_tab` on `{ sheetId, tabGid }` (excluding null `tabGid`) reserves a tab to one event while it's live or trashed — only a hard delete frees it for relinking.
 - **Attendee**: `eventId`, `fullName`, `extra` (free-form `Record<string,string>` from spreadsheet columns), `printStatus`, `printCount`, `lastPrintedAt`.
 
 Domain rules baked into the services:
@@ -78,7 +78,7 @@ Domain rules baked into the services:
 - **Trash**: `purgeExpiredTrash()` runs hourly from `server.ts`; `GET /events/trash` hides expired items and returns `purgeAt`.
 - **`POST /events/:id/sync-sheet` returns `lastSyncedAt`.**
 - **Sheet columns** (`mapSheetRows`): `Reg. Number` is the attendee ID. The name is `Full Name` when that column exists (legacy per-event sheets), else `First Name` + `Last Name` (the Main Sheet: Reg. Number, First Name, Last Name, Username, Phone, Company, Job Title, Birthday, Track). Every other non-empty column goes into `extra`. A header missing the ID or a name column throws 400, surfaced on the kiosk.
-- **Bus route sync** (`sheetSync.services.ts`): every sync scans attendee `extra` for the bot's three-language bus-route answers and appends unseen phrases to `event.busRoutes` without renaming, moving, or deleting prior labels — preserving manual edits from Edit Event. Blank column headers are keyed by column letter (`L`, `N`, …) since the bot columns sit past the Main Sheet's labeled headers. `verify.ts` exercises both merge and keying behavior.
+- **Bus route sync** (`sheetSync.services.ts`): every sync scans attendee `extra` for the bot's three-language bus-route answers and appends unseen phrases to `event.busRoutes` — it may improve an `autoLabel: true` route's label, but never renames a human-set label, moves a placed phrase, deletes, or produces two routes with the same label (case-insensitive), so Edit Event corrections survive. The routes write is a compare-and-set against the routes the sync read (`applyDetectedRoutes`), so a PATCH landing mid-sync wins and the next sync re-detects. Blank column headers are keyed by column letter (`L`, `N`, …) since the bot columns sit past the Main Sheet's labeled headers. `verify.ts` exercises both merge and keying behavior.
 
 ## Deployment (Railway)
 

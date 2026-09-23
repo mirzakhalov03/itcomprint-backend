@@ -252,6 +252,35 @@ async function main() {
     'mergeDetectedRoutes reports no change when nothing is new',
     !mergeDetectedRoutes(rerun.routes, ['Bus from Kogan', 'Telegram']).changed,
   );
+  const uniqueLabels = (routes: { label: string }[]) =>
+    new Set(routes.map((r) => r.label.toLowerCase())).size === routes.length;
+  // An English phrase joins the auto "Jizzax" route, whose preferred label is a human's "Jizzakh".
+  const clash = mergeDetectedRoutes(
+    [
+      { label: 'Jizzax', autoLabel: true, phrases: ['Jizzaxdan Avtobusda'], hidden: false },
+      { label: 'Jizzakh', autoLabel: false, phrases: ['Автобус из Джизака'], hidden: false },
+    ],
+    ['Bus from Jizzakh'],
+  );
+  check(
+    'mergeDetectedRoutes keeps an auto label rather than duplicate another route’s',
+    uniqueLabels(clash.routes) &&
+      clash.routes[0].label === 'Jizzax' &&
+      clash.routes[0].phrases.join() === 'Jizzaxdan Avtobusda,Bus from Jizzakh' &&
+      !mergeDetectedRoutes(clash.routes, ['Bus from Jizzakh']).changed,
+    clash.routes,
+  );
+  const newClash = mergeDetectedRoutes(
+    [{ label: 'khiva', autoLabel: false, phrases: ['Bus from Kogan'], hidden: false }],
+    ['Bus from Khiva'],
+  );
+  check(
+    'mergeDetectedRoutes suffixes a new route whose label is taken',
+    uniqueLabels(newClash.routes) &&
+      newClash.routes[1]?.label === 'Khiva (2)' &&
+      !mergeDetectedRoutes(newClash.routes, ['Bus from Khiva']).changed,
+    newClash.routes,
+  );
 
   const { fetchSheetRows, __setTestSheetRows } = await import('../src/services/sheetSync.services');
 
@@ -1328,6 +1357,66 @@ async function main() {
       { label: 'Ghost', autoLabel: false, phrases: [], hidden: false },
     ]);
     check('PATCH busRoutes with a phrase-less route → 400', emptyRouteRes.status === 400);
+
+    // Sync must not create a duplicate label (auto "Jizzax" would prefer the human's "Jizzakh").
+    await patchRoutes([
+      { label: 'Jizzax', autoLabel: true, phrases: ['Jizzaxdan Avtobusda'], hidden: false },
+      { label: 'Jizzakh', autoLabel: false, phrases: ['Автобус из Джизака'], hidden: false },
+    ]);
+    __setTestTabValues(testEnv.MAIN_SHEET_ID, 'Bukhara Roadshow', [
+      busHeader,
+      ['J1', 'Ali', 'V', 'Jizzaxdan Avtobusda'],
+      ['J2', 'Olga', 'P', '', '', 'Автобус из Джизака'],
+      ['J3', 'Sam', 'K', '', '', '', 'Bus from Jizzakh'],
+    ]);
+    await afetch(`/events/${busEvent._id}/sync-sheet`, { method: 'POST' });
+    const jizzakh = await getBusRoutes();
+    check(
+      'resync never gives two routes the same label',
+      jizzakh.length === 2 &&
+        new Set(jizzakh.map((r: { label: string }) => r.label.toLowerCase())).size === 2 &&
+        jizzakh[0].phrases.includes('Bus from Jizzakh'),
+      jizzakh,
+    );
+
+    // Race: a sync that read routes before a PATCH must not overwrite that PATCH.
+    const { applyDetectedRoutes } = await import('../src/services/sheetSync.services');
+    const staleSnapshot = await getBusRoutes();
+    const raced = [
+      { label: 'Jizzakh bus', autoLabel: false, phrases: ['Jizzaxdan Avtobusda'], hidden: true },
+      { label: 'Jizzakh', autoLabel: false, phrases: ['Автобус из Джизака'], hidden: false },
+    ];
+    await patchRoutes(raced);
+    const staleWrote = await applyDetectedRoutes(String(busEvent._id), staleSnapshot, [
+      'Bus from Navoi',
+    ]);
+    const afterRace = await getBusRoutes();
+    check(
+      'a sync merged from stale routes leaves a concurrent PATCH intact',
+      !staleWrote && JSON.stringify(afterRace) === JSON.stringify(raced),
+      afterRace,
+    );
+    const freshWrote = await applyDetectedRoutes(String(busEvent._id), afterRace, [
+      'Bus from Navoi',
+    ]);
+    const afterFresh = await getBusRoutes();
+    check(
+      'the next sync (fresh routes) applies the detected phrase',
+      freshWrote && afterFresh.length === 3 && afterFresh[2].label === 'Navoi',
+      afterFresh,
+    );
+    const { EventModel: BusEventModel } = await import('../src/models/event.model');
+    await BusEventModel.updateOne({ _id: busEvent._id }, { $unset: { busRoutes: 1 } });
+    const unsetRaw = await BusEventModel.collection.findOne({
+      _id: new mongoose.Types.ObjectId(String(busEvent._id)),
+    });
+    check(
+      'detected routes still apply to an event stored without a busRoutes field',
+      unsetRaw != null &&
+        !('busRoutes' in unsetRaw) &&
+        (await applyDetectedRoutes(String(busEvent._id), [], ['Bus from Navoi'])) &&
+        (await getBusRoutes())?.[0]?.label === 'Navoi',
+    );
 
     // --- LOGOUT ---
     const logoutRes = await afetch('/auth/logout', { method: 'POST' });
