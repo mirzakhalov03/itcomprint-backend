@@ -262,7 +262,10 @@ export async function syncEventAttendees(eventId: string): Promise<{
   if (!event) throw new AppError(404, 'Event not found');
   if (!event.sheetId) throw new AppError(400, 'Event is not linked to a sheet');
 
-  const rows = await fetchSheetRows(event.sheetId);
+  const rows =
+    event.tabGid != null
+      ? await fetchTabRows(event.sheetId, event.tabGid)
+      : await fetchSheetRows(event.sheetId);
   const { mapped, skipped, issues } = mapSheetRows(rows);
   const { added, updated } = await syncRowsIntoEvent(eventId, mapped);
   // An empty mapping means a renamed header or blank read, never "everyone left" — don't wipe the roster.

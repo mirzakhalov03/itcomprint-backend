@@ -860,6 +860,46 @@ async function main() {
       (await listAttendees(String(syncEvent._id))).length === 2,
     );
 
+    // Tab-linked sync: reads by gid, survives a rename, and a removed tab leaves the roster alone.
+    __setTestSheetTabs(testEnv.MAIN_SHEET_ID, [{ gid: 444, title: 'Expo' }]);
+    __setTestTabValues(testEnv.MAIN_SHEET_ID, 'Expo', [
+      ['Reg. Number', 'Full Name'],
+      ['T1', 'Nina Ray'],
+    ]);
+    const tabEvent = await SyncEventModel.create({
+      name: 'Tab Linked Event',
+      date: new Date(),
+      authorId: new mongoose.Types.ObjectId(),
+      sheetId: testEnv.MAIN_SHEET_ID,
+      tabGid: 444,
+    });
+    const tabSync = await syncEventAttendees(String(tabEvent._id));
+    check('tab-linked sync reads the tab by gid', tabSync.added === 1, tabSync);
+
+    __setTestSheetTabs(testEnv.MAIN_SHEET_ID, [{ gid: 444, title: 'Expo 2026' }]); // renamed
+    __setTestTabValues(testEnv.MAIN_SHEET_ID, 'Expo 2026', [
+      ['Reg. Number', 'Full Name'],
+      ['T1', 'Nina Ray'],
+      ['T2', 'Omar Fay'],
+    ]);
+    const renamedSync = await syncEventAttendees(String(tabEvent._id));
+    check(
+      'tab-linked sync survives a tab rename',
+      renamedSync.added === 1 && renamedSync.removed === 0,
+      renamedSync,
+    );
+
+    __setTestSheetTabs(testEnv.MAIN_SHEET_ID, []); // tab deleted
+    const removedTab = await syncEventAttendees(String(tabEvent._id)).then(
+      () => 'did not throw',
+      (err) => err.status,
+    );
+    check('sync on a removed tab → 400', removedTab === 400, removedTab);
+    check(
+      'removed tab leaves the roster untouched',
+      (await listAttendees(String(tabEvent._id))).length === 2,
+    );
+
     // --- ACTIVITY LOG ---
     const json = { 'Content-Type': 'application/json' };
     const actEvent = await afetch('/events', {
