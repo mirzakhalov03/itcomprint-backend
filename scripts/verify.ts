@@ -719,6 +719,11 @@ async function main() {
     __setTestSheetTabs(testEnv.MAIN_SHEET_ID, [
       { gid: 111, title: 'DevFest Tashkent' },
       { gid: 222, title: 'Archive' },
+      { gid: 333, title: 'Copy of DevFest Tashkent' },
+      { gid: 334, title: 'Test' },
+      { gid: 335, title: 'devfest TEST run' },
+      { gid: 336, title: 'Copywriting Summit' }, // whole words only
+      { gid: 337, title: 'Testing Day' },
     ]);
     __setTestTabValues(testEnv.MAIN_SHEET_ID, 'DevFest Tashkent', [
       ['Reg. Number', 'First Name', 'Last Name', 'Occupation', 'Full Name'],
@@ -730,7 +735,15 @@ async function main() {
     check('GET /events/sheet-tabs → 200', tabsRes.status === 200, tabsBody);
     check(
       'GET /events/sheet-tabs → all available before linking',
-      tabsBody.length === 2 && tabsBody.every((t: TabRow) => t.status === 'available'),
+      tabsBody.every((t: TabRow) => t.status === 'available'),
+      tabsBody,
+    );
+    check(
+      'GET /events/sheet-tabs → hides "copy" / "test" tabs, keeps lookalike words',
+      tabsBody
+        .map((t: TabRow) => t.gid)
+        .sort()
+        .join() === '111,222,336,337',
       tabsBody,
     );
 

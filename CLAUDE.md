@@ -28,7 +28,7 @@ All routes are mounted under `/api` (`app.ts`):
 | POST   | `/auth/logout`           | clear session cookie (requires session)                                                                                                                        |
 | POST   | `/events`                | create an event **with its attendees** in one shot (requires session; stamps author)                                                                           |
 | GET    | `/events`                | list events, each with `attendeeCount` (requires session)                                                                                                      |
-| GET    | `/events/sheet-tabs`     | list the Main Sheet's tabs with `available`/`linked`/`trashed` status (requires session)                                                                       |
+| GET    | `/events/sheet-tabs`     | list the Main Sheet's tabs with `available`/`linked`/`trashed` status; hides whole-word "copy"/"test" tabs (requires session)                                  |
 | POST   | `/events/sheet`          | create an event from a Main Sheet tab; body `{ name, date, tabGid }` — 409 if the tab is reserved by a live or trashed event (requires session; stamps author) |
 | GET    | `/events/trash`          | list trashed events, each with `purgeAt` (requires session)                                                                                                    |
 | GET    | `/events/:id`            | one event (requires session)                                                                                                                                   |

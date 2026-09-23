@@ -72,6 +72,10 @@ export async function listEvents() {
 
 export type SheetTabStatus = 'available' | 'linked' | 'trashed';
 
+// Scratch tabs ("Copy of …", "Test") aren't events. Whole words only, so "Testing Day" still shows.
+const HIDDEN_TAB_TITLE = /\b(copy|test)\b/i;
+
+/** Picker-only filter: sync reads a linked tab by gid regardless of its title. */
 export async function listMainSheetTabs() {
   const [tabs, reserved] = await Promise.all([
     listSheetTabs(env.MAIN_SHEET_ID),
@@ -84,7 +88,9 @@ export async function listMainSheetTabs() {
   const statusByGid = new Map<number | null, SheetTabStatus>(
     reserved.map((e) => [e.tabGid, e.deletedAt ? 'trashed' : 'linked']),
   );
-  return tabs.map((tab) => ({ ...tab, status: statusByGid.get(tab.gid) ?? 'available' }));
+  return tabs
+    .filter((tab) => !HIDDEN_TAB_TITLE.test(tab.title))
+    .map((tab) => ({ ...tab, status: statusByGid.get(tab.gid) ?? 'available' }));
 }
 
 export async function getEvent(id: string) {
