@@ -73,8 +73,8 @@ export async function listTrash(_req: Request, res: Response) {
   res.json(await eventService.listTrash());
 }
 
-export async function listSheetTabs(_req: Request, res: Response) {
-  res.json(await eventService.listMainSheetTabs());
+export async function listSheetTabs(req: Request, res: Response) {
+  res.json(await eventService.listMainSheetTabs({ fresh: req.query.refresh === '1' }));
 }
 
 export async function createFromSheet(req: Request, res: Response) {

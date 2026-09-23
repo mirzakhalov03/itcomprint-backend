@@ -10,7 +10,7 @@ import { AppError } from '../utils/AppError';
 import type { Author } from '../utils/author';
 import { env } from '../config/env';
 import { isDuplicateKeyError } from '../utils/isDuplicateKeyError';
-import { listSheetTabs, syncEventAttendees } from './sheetSync.services';
+import { listSheetTabs, syncEventAttendees, type SheetTab } from './sheetSync.services';
 
 // Creation isn't transactional: undo a half-created event so no empty event is left behind.
 async function deleteEventCascade(eventId: string) {
@@ -75,10 +75,24 @@ export type SheetTabStatus = 'available' | 'linked' | 'trashed';
 // Scratch tabs ("Copy of …", "Test") aren't events. Whole words only, so "Testing Day" still shows.
 const HIDDEN_TAB_TITLE = /\b(copy|test)\b/i;
 
+// Google takes ~2 s to list tabs, so the picker reuses the list briefly. Only the picker:
+// sync always re-resolves gid → title live, and statuses below always come from the DB.
+const TAB_LIST_TTL_MS = 60_000;
+let cachedTabList: { fetchedAt: number; tabs: SheetTab[] } | null = null;
+
+async function mainSheetTabList(fresh: boolean): Promise<SheetTab[]> {
+  if (!fresh && cachedTabList && Date.now() - cachedTabList.fetchedAt < TAB_LIST_TTL_MS) {
+    return cachedTabList.tabs;
+  }
+  const tabs = await listSheetTabs(env.MAIN_SHEET_ID);
+  cachedTabList = { fetchedAt: Date.now(), tabs };
+  return tabs;
+}
+
 /** Picker-only filter: sync reads a linked tab by gid regardless of its title. */
-export async function listMainSheetTabs() {
+export async function listMainSheetTabs({ fresh = false }: { fresh?: boolean } = {}) {
   const [tabs, reserved] = await Promise.all([
-    listSheetTabs(env.MAIN_SHEET_ID),
+    mainSheetTabList(fresh),
     // No deletedAt filter: trashed events keep their tab, mirroring the one_event_per_tab index.
     EventModel.find(
       { sheetId: env.MAIN_SHEET_ID, tabGid: { $ne: null } },

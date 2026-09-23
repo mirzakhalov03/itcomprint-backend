@@ -893,6 +893,28 @@ async function main() {
       (await tabStatus(111)) === 'available',
     );
 
+    // Google's tab list is cached briefly; ?refresh=1 bypasses it for a just-added tab.
+    __setTestSheetTabs(testEnv.MAIN_SHEET_ID, [
+      { gid: 111, title: 'DevFest Tashkent' },
+      { gid: 555, title: 'Brand New Event' },
+    ]);
+    check(
+      'GET /events/sheet-tabs → serves the cached tab list',
+      (await tabStatus(555)) === undefined,
+    );
+    const refreshedTabs = (await afetch('/events/sheet-tabs?refresh=1').then((r) =>
+      r.json(),
+    )) as TabRow[];
+    check(
+      'GET /events/sheet-tabs?refresh=1 → picks up a just-added tab',
+      refreshedTabs.some((t) => t.gid === 555),
+      refreshedTabs,
+    );
+    check(
+      'GET /events/sheet-tabs?refresh=bogus → 400',
+      (await afetch('/events/sheet-tabs?refresh=bogus')).status === 400,
+    );
+
     // --- SHEET SYNC: upsert + orchestration (needs DB, no HTTP required) ---
     const { syncEventAttendees } = await import('../src/services/sheetSync.services');
     const { EventModel: SyncEventModel } = await import('../src/models/event.model');

@@ -19,35 +19,35 @@ Env (`.env`, Zod-validated at startup — see `.env.example`): `NODE_ENV`, `PORT
 
 All routes are mounted under `/api` (`app.ts`):
 
-| Method | Path                     | Purpose                                                                                                                                                        |
-| ------ | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/health`                | readiness — 200 `{ ok: true, db: 'up' }` only when Mongo is connected, else 503                                                                                |
-| POST   | `/auth/google`           | verify Google ID token, upsert user, set session cookie                                                                                                        |
-| GET    | `/auth/me`               | return current user (requires session)                                                                                                                         |
-| PATCH  | `/auth/me`               | update `displayName`, set `onboardedAt` on first call (requires session)                                                                                       |
-| POST   | `/auth/logout`           | clear session cookie (requires session)                                                                                                                        |
-| POST   | `/events`                | create an event **with its attendees** in one shot (requires session; stamps author)                                                                           |
-| GET    | `/events`                | list events, each with `attendeeCount` (requires session)                                                                                                      |
-| GET    | `/events/sheet-tabs`     | list the Main Sheet's tabs with `available`/`linked`/`trashed` status; hides whole-word "copy"/"test" tabs (requires session)                                  |
-| POST   | `/events/sheet`          | create an event from a Main Sheet tab; body `{ name, date, tabGid }` — 409 if the tab is reserved by a live or trashed event (requires session; stamps author) |
-| GET    | `/events/trash`          | list trashed events, each with `purgeAt` (requires session)                                                                                                    |
-| GET    | `/events/:id`            | one event (requires session)                                                                                                                                   |
-| PATCH  | `/events/:id`            | update `name`/`date` and/or `templateId` (requires session)                                                                                                    |
-| DELETE | `/events/:id`            | soft delete — move to trash (requires session)                                                                                                                 |
-| POST   | `/events/:id/restore`    | restore a trashed event (requires session)                                                                                                                     |
-| DELETE | `/events/:id/permanent`  | hard delete — also frees its Main Sheet tab for relinking (requires session)                                                                                   |
-| GET    | `/events/:id/attendees`  | list attendees (requires session)                                                                                                                              |
-| POST   | `/events/:id/sync-sheet` | re-sync a tab-linked event's roster from the Main Sheet, returns `lastSyncedAt` (requires session; not logged)                                                 |
-| POST   | `/attendees/:id/print`   | mark printed — also the reprint endpoint (requires session)                                                                                                    |
-| DELETE | `/attendees/:id/print`   | undo a print — resets `printStatus`/`printCount`/`lastPrintedAt` (requires session)                                                                            |
-| GET    | `/templates`             | list badge templates (requires session)                                                                                                                        |
-| GET    | `/templates/field-keys`  | distinct `extra` keys across all attendees, for the editor's field picker (requires session)                                                                   |
-| POST   | `/templates`             | create a template (requires session)                                                                                                                           |
-| GET    | `/templates/:id`         | one template (requires session)                                                                                                                                |
-| PUT    | `/templates/:id`         | update a template (requires session)                                                                                                                           |
-| DELETE | `/templates/:id`         | delete a template — 400 for the default (requires session)                                                                                                     |
-| GET    | `/activity`              | page activity log 50 at a time by `_id` cursor, `?eventId&before` (requires session)                                                                           |
-| POST   | `/activity/printer`      | log a WebUSB printer connect/disconnect from the browser (requires session)                                                                                    |
+| Method | Path                     | Purpose                                                                                                                                                                                |
+| ------ | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/health`                | readiness — 200 `{ ok: true, db: 'up' }` only when Mongo is connected, else 503                                                                                                        |
+| POST   | `/auth/google`           | verify Google ID token, upsert user, set session cookie                                                                                                                                |
+| GET    | `/auth/me`               | return current user (requires session)                                                                                                                                                 |
+| PATCH  | `/auth/me`               | update `displayName`, set `onboardedAt` on first call (requires session)                                                                                                               |
+| POST   | `/auth/logout`           | clear session cookie (requires session)                                                                                                                                                |
+| POST   | `/events`                | create an event **with its attendees** in one shot (requires session; stamps author)                                                                                                   |
+| GET    | `/events`                | list events, each with `attendeeCount` (requires session)                                                                                                                              |
+| GET    | `/events/sheet-tabs`     | list the Main Sheet's tabs with `available`/`linked`/`trashed` status; hides whole-word "copy"/"test" tabs; Google's tab list is cached 60 s, `?refresh=1` bypasses (requires session) |
+| POST   | `/events/sheet`          | create an event from a Main Sheet tab; body `{ name, date, tabGid }` — 409 if the tab is reserved by a live or trashed event (requires session; stamps author)                         |
+| GET    | `/events/trash`          | list trashed events, each with `purgeAt` (requires session)                                                                                                                            |
+| GET    | `/events/:id`            | one event (requires session)                                                                                                                                                           |
+| PATCH  | `/events/:id`            | update `name`/`date` and/or `templateId` (requires session)                                                                                                                            |
+| DELETE | `/events/:id`            | soft delete — move to trash (requires session)                                                                                                                                         |
+| POST   | `/events/:id/restore`    | restore a trashed event (requires session)                                                                                                                                             |
+| DELETE | `/events/:id/permanent`  | hard delete — also frees its Main Sheet tab for relinking (requires session)                                                                                                           |
+| GET    | `/events/:id/attendees`  | list attendees (requires session)                                                                                                                                                      |
+| POST   | `/events/:id/sync-sheet` | re-sync a tab-linked event's roster from the Main Sheet, returns `lastSyncedAt` (requires session; not logged)                                                                         |
+| POST   | `/attendees/:id/print`   | mark printed — also the reprint endpoint (requires session)                                                                                                                            |
+| DELETE | `/attendees/:id/print`   | undo a print — resets `printStatus`/`printCount`/`lastPrintedAt` (requires session)                                                                                                    |
+| GET    | `/templates`             | list badge templates (requires session)                                                                                                                                                |
+| GET    | `/templates/field-keys`  | distinct `extra` keys across all attendees, for the editor's field picker (requires session)                                                                                           |
+| POST   | `/templates`             | create a template (requires session)                                                                                                                                                   |
+| GET    | `/templates/:id`         | one template (requires session)                                                                                                                                                        |
+| PUT    | `/templates/:id`         | update a template (requires session)                                                                                                                                                   |
+| DELETE | `/templates/:id`         | delete a template — 400 for the default (requires session)                                                                                                                             |
+| GET    | `/activity`              | page activity log 50 at a time by `_id` cursor, `?eventId&before` (requires session)                                                                                                   |
+| POST   | `/activity/printer`      | log a WebUSB printer connect/disconnect from the browser (requires session)                                                                                                            |
 
 `/events`, `/attendees`, `/templates`, and `/activity` are guarded by `requireAuth` (`middlewares/requireAuth.middleware.ts`), which reads the `session` httpOnly cookie, verifies the JWT, and attaches `req.user`. Auth routes are public.
 

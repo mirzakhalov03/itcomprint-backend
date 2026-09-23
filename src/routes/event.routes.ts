@@ -6,6 +6,7 @@ import {
   createEventSchema,
   createEventFromSheetSchema,
   eventIdParamSchema,
+  sheetTabsQuerySchema,
   updateEventSchema,
 } from '../validators/event.validators';
 
@@ -16,7 +17,7 @@ eventRouter.post('/sheet', validate(createEventFromSheetSchema), controller.crea
 eventRouter.get('/', controller.list);
 // Must come before '/:id' — otherwise 'trash'/'sheet-tabs' are parsed as an event id.
 eventRouter.get('/trash', controller.listTrash);
-eventRouter.get('/sheet-tabs', controller.listSheetTabs);
+eventRouter.get('/sheet-tabs', validate(sheetTabsQuerySchema, 'query'), controller.listSheetTabs);
 eventRouter.get('/:id', validate(eventIdParamSchema, 'params'), controller.getOne);
 
 eventRouter.patch(

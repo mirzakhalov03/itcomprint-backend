@@ -37,3 +37,6 @@ export const createEventFromSheetSchema = z.object({
 });
 
 export type CreateEventFromSheetInput = z.infer<typeof createEventFromSheetSchema>;
+
+// `?refresh=1` skips the cached tab list (a tab was just added in Google Sheets).
+export const sheetTabsQuerySchema = z.object({ refresh: z.literal('1').optional() });
