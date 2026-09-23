@@ -1,0 +1,25 @@
+CLAUDE.md
+  s_404697d40bcca1::t_8b1e72c074dc54 35,71,81
+scripts/verify.ts
+  s_404697d40bcca1::t_c2f03d071d3bb2 255-283,1361-1420
+src/services/sheetSync.services.ts
+  s_404697d40bcca1::t_93bba6aa531b75 6,302-304,307-335
+src/utils/busRoutes.ts
+  s_404697d40bcca1::t_1ea5fd40693687 98-99,126-129,133-138,142-147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "53e5ec572636a81f7ab8d52d1f4cb41984bd9692",
+  "prompts": {},
+  "sessions": {
+    "s_404697d40bcca1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4829054a-93c9-465d-b752-a285ee13b921",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
