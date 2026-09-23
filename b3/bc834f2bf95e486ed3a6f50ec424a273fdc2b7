@@ -1,0 +1,29 @@
+scripts/verify.ts
+  s_99388727e031d7::t_25d36b7910dd88 1248-1331
+src/controllers/event.controllers.ts
+  s_99388727e031d7::t_bb7efb05f03d06 48
+src/models/event.model.ts
+  s_99388727e031d7::t_315d380bdf0246 24,27-36,54-55
+src/services/event.services.ts
+  s_99388727e031d7::t_add966fa138969 161
+src/services/sheetSync.services.ts
+  s_99388727e031d7::t_e0851ce1ec5adf 8,302-306
+src/validators/event.validators.ts
+  s_99388727e031d7::t_c40ed9143ceb2f 22-40,46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "b3bc834f2bf95e486ed3a6f50ec424a273fdc2b7",
+  "prompts": {},
+  "sessions": {
+    "s_99388727e031d7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_99388727e031d7",
+        "model": "unknown"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
