@@ -1130,6 +1130,38 @@ async function main() {
       (await listAttendees(String(syncEvent._id))).length === 2,
     );
 
+    // Manual (walk-in) attendees: ours only, and sync must leave them alone.
+    const addManual = (body: unknown, id: string = String(syncEvent._id)) =>
+      afetch(`/events/${id}/attendees`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    const manualRes = await addManual({ fullName: '  Walk In  ' });
+    const manual = await manualRes.json();
+    check(
+      'POST /events/:id/attendees → 201, trimmed name, no registrantId',
+      manualRes.status === 201 &&
+        manual.fullName === 'Walk In' &&
+        !manual.registrantId &&
+        manual.manual === true &&
+        manual.extra !== undefined &&
+        Object.keys(manual.extra).length === 0,
+      manual,
+    );
+    check('add attendee: blank name → 400', (await addManual({ fullName: '   ' })).status === 400);
+    check(
+      'add attendee: unknown event → 404',
+      (await addManual({ fullName: 'X' }, '0123456789abcdef01234567')).status === 404,
+    );
+    const syncAfterManual = await syncEventAttendees(String(syncEvent._id));
+    check(
+      'sync leaves the manual attendee on the roster',
+      syncAfterManual.removed === 0 &&
+        (await listAttendees(String(syncEvent._id))).some((a) => a.fullName === 'Walk In'),
+      syncAfterManual,
+    );
+
     // Tab-linked sync: reads by gid, survives a rename, and a removed tab leaves the roster alone.
     __setTestSheetTabs(testEnv.MAIN_SHEET_ID, [{ gid: 444, title: 'Expo' }]);
     __setTestTabValues(testEnv.MAIN_SHEET_ID, 'Expo', [

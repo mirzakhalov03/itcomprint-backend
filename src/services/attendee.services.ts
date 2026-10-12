@@ -1,5 +1,7 @@
 import { AttendeeModel } from '../models/attendee.model';
+import { EventModel } from '../models/event.model';
 import { AppError } from '../utils/AppError';
+import type { AddAttendeeInput } from '../validators/attendee.validators';
 
 // Full roster: the kiosk searches and filters in memory. searchText is excluded because pre-cleanup docs still carry it.
 export async function listAttendees(eventId: string) {
@@ -31,4 +33,14 @@ export async function markUnprinted(attendeeId: string) {
   ).lean();
   if (!attendee) throw new AppError(404, 'Attendee not found');
   return attendee;
+}
+
+// No registrantId on purpose: sync only soft-removes attendees that have one, so manual
+// entries stay on the roster and never reach the Google Sheet.
+export async function addAttendee(eventId: string, { fullName }: AddAttendeeInput) {
+  if (!(await EventModel.exists({ _id: eventId, deletedAt: null }))) {
+    throw new AppError(404, 'Event not found');
+  }
+  const attendee = await AttendeeModel.create({ eventId, fullName, manual: true });
+  return attendee.toObject({ versionKey: false });
 }

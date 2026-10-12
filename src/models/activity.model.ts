@@ -4,6 +4,7 @@ export const ACTIVITY_ACTIONS = [
   'attendee.print',
   'attendee.reprint',
   'attendee.unprint',
+  'attendee.add',
   'event.create',
   'event.update',
   'event.template',

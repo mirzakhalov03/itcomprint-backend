@@ -8,6 +8,16 @@ export async function listByEvent(req: Request, res: Response) {
   res.json(attendees);
 }
 
+export async function add(req: Request, res: Response) {
+  const attendee = await attendeeService.addAttendee(String(req.params.id), req.body);
+  await logActivity(toAuthor(req.user!), {
+    action: 'attendee.add',
+    eventId: attendee.eventId,
+    targetName: attendee.fullName,
+  });
+  res.status(201).json(attendee);
+}
+
 export async function print(req: Request, res: Response) {
   const attendee = await attendeeService.markPrinted(String(req.params.id));
   await logActivity(toAuthor(req.user!), {

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as controller from '../controllers/event.controllers';
 import * as attendeeController from '../controllers/attendee.controllers';
+import { addAttendeeSchema } from '../validators/attendee.validators';
 import { validate } from '../middlewares/validate.middleware';
 import {
   createEventSchema,
@@ -40,6 +41,13 @@ eventRouter.get(
   '/:id/attendees',
   validate(eventIdParamSchema, 'params'),
   attendeeController.listByEvent,
+);
+
+eventRouter.post(
+  '/:id/attendees',
+  validate(eventIdParamSchema, 'params'),
+  validate(addAttendeeSchema),
+  attendeeController.add,
 );
 
 eventRouter.post('/:id/sync-sheet', validate(eventIdParamSchema, 'params'), controller.syncSheet);
