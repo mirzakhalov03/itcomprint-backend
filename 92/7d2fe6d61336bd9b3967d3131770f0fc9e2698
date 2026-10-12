@@ -1,0 +1,19 @@
+src/utils/busRoutes.ts
+  s_5c5a465ac64685::t_288691028cd7b7 5-24,69-71,73-84,104-108,110-114,117-132,137-143,149,170-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "927d2fe6d61336bd9b3967d3131770f0fc9e2698",
+  "prompts": {},
+  "sessions": {
+    "s_5c5a465ac64685": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e7f87c48-8816-4d12-b20d-c6ab8674b27e",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Javohir Mirzakhalov <68010314+mirzakhalov03@users.noreply.github.com>"
+    }
+  }
+}
